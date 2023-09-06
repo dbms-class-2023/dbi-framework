@@ -152,7 +152,7 @@ class SimpleStorageAccessManager(private val pageCache: PageCache): StorageAcces
             }
             ?: throw AccessMethodException("Relation $tableName not found")
 
-    override fun createTable(tableName: String, vararg columns: Triple<String, AttributeType<Any>, ColumnConstraint?>): Oid {
+    override fun createTable(tableName: String): Oid {
         if (tableOidMapping.get(tableName) != null) {
             throw IllegalArgumentException("Table $tableName already exists")
         }

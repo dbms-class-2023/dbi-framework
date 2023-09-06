@@ -25,10 +25,7 @@ internal const val MAX_ROOT_PAGE_COUNT = 4096
 typealias Oid = Int
 typealias OidPageidRecord = Record2<Oid, PageId>
 typealias OidNameRecord = Record3<Oid, String, Boolean>
-//typealias TableAttributeRecord = Record3<Oid, String, Int>
 
-
-interface ColumnConstraint {}
 
 class AccessMethodException: Exception {
     constructor(message: String): super(message)
@@ -57,20 +54,22 @@ interface FullScan {
  */
 interface StorageAccessManager {
     /**
-     * Creates an iterator over the records of the given table, if such table exists.
+     * Creates an empty table with the given name and writes appropriate records into the catalog.
+     *
+     * @return table identifier
+     * @throws IllegalArgumentException if a table with the given name already exists.
+     */
+    @Throws(IllegalArgumentException::class)
+    fun createTable(tableName: String): Oid
+
+    /**
+     * Creates a full scan object over the records of the given table, if such table exists.
      *
      * @throws AccessMethodException if the requested table can't be found in the catalog.
      */
     @Throws(AccessMethodException::class)
     fun createFullScan(tableName: String): FullScan
 
-    /**
-     * Creates an empty table with the given name and writes appropriate records into the catalog.
-     *
-     * @throws IllegalArgumentException if a table with the given name already exists.
-     */
-    @Throws(IllegalArgumentException::class)
-    fun createTable(tableName: String, vararg columns: Triple<String, AttributeType<Any>, ColumnConstraint?>): Oid
 
     /**
      * Adds new pages to the given table. If more than 1 page is requested, their ids are sequential.
