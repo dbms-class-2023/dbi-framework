@@ -21,7 +21,7 @@ package net.barashev.dbi2023.app
 import net.barashev.dbi2023.*
 
 /**
- * Please change this code and use your own factories.
+ * Feel free to change this code and use your own factories.
  */
 fun initializeFactories(storage: Storage, cacheSize: Int): Pair<PageCache, StorageAccessManager> {
     CacheManager.factory = { storageImpl, size -> SimplePageCacheImpl(storageImpl, size) }
