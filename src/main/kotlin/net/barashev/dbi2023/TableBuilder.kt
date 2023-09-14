@@ -21,18 +21,28 @@ package net.barashev.dbi2023
  * by providing one simple insert method.
  */
 class TableBuilder(private val storageAccessManager: StorageAccessManager, private val cache: PageCache, private val tableOid: Oid): AutoCloseable {
+    private var currentPage: CachedPage? = null
 
-    /**
-     * Inserts a new record into the table. Adds new table pages if necessary.
-     */
-    fun insert(record: ByteArray) {
-        // TODO: write your code here
+    private fun newPage(): CachedPage {
+        return cache.getAndPin(storageAccessManager.addPage(tableOid))
     }
 
-    /**
-     * Closes the builder and releases resources if necessary.
-     */
+    fun insert(record: ByteArray) {
+        var page = currentPage ?: newPage().also { currentPage = it }
+        page.putRecord(record).let {result ->
+            when {
+                result.isOutOfSpace -> {
+                    page.close()
+                    page = newPage().also { currentPage = it }
+                    assert(page.putRecord(record).isOk)
+                }
+                result.isOk -> {}
+                else -> throw RuntimeException("Unexpected result of putRecord() call: $result")
+            }
+        }
+    }
+
     override fun close() {
-        // TODO: write your code here
+        currentPage?.close()
     }
 }
