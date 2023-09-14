@@ -47,10 +47,17 @@ class DataGenerator(
     val ticketBuilder = MyTableBuilder(storageAccessManager, cache, ticketTableOid)
 
     init {
+        println("--------------------")
+        println("Inserting $planetCount planets, $spacecraftCount spacecrafts, $flightCount flights and $ticketCount tickets")
+        println("--------------------")
         populatePlanets(planetCount)
         populateSpacecrafts(spacecraftCount)
         populateFlights(flightCount, planetCount, spacecraftCount)
         populateTickets(ticketCount, flightCount)
+        println("--------------------")
+        println("Done!")
+        println("--------------------")
+        Thread.sleep(2000)
     }
 
     override fun close() {

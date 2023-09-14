@@ -44,6 +44,20 @@ class DBI2023: CliktCommand() {
         println("The cost to populate tables: ${populateCost}")
         println("Now we will print the contents of all tables")
         // TODO: write your code here
+        println("Planet table:")
+        accessManager.createFullScan("planet").records { planetRecord(it) }.forEach { println(it) }
+
+        println()
+        println("Spacecraft table:")
+        accessManager.createFullScan("spacecraft").records { spacecraftRecord(it) }.forEach { println(it) }
+
+        println()
+        println("Flight table:")
+        accessManager.createFullScan("flight").records { flightRecord(it) }.forEach { println(it) }
+
+        println()
+        println("Ticket table:")
+        accessManager.createFullScan("ticket").records { ticketRecord(it) }.forEach { println(it) }
 
     }
 
