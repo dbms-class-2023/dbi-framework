@@ -110,9 +110,7 @@ open class SimplePageCacheImpl(internal val storage: Storage, private val maxCac
         return result
     }
 
-    override fun createSubCache(size: Int): PageCache = SubcacheImpl(this, size)
-
-    override fun flush() {
+  override fun flush() {
         cache.forEach { (_, cachedPage) -> cachedPage.write() }
     }
 
@@ -183,11 +181,7 @@ class SubcacheImpl(private val mainCache: SimplePageCacheImpl, private val maxCa
         return result
     }
 
-    override fun createSubCache(size: Int): PageCache {
-        error("Not supposed to be called")
-    }
-
-    override fun flush() {
+  override fun flush() {
         subcachePages.mapNotNull { mainCache.cache[it] }.forEach { page -> mainCache.storage.write(page.diskPage) }
     }
 
