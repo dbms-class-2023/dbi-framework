@@ -21,10 +21,18 @@ package net.barashev.dbi2023.app
 import net.barashev.dbi2023.*
 
 /**
- * Feel free to change this code and use your own factories.
+ * Feel free to change this code and add your own factories.
  */
-fun initializeFactories(storage: Storage, cacheSize: Int): Pair<PageCache, StorageAccessManager> {
-    CacheManager.factory = { storageImpl, size -> SimplePageCacheImpl(storageImpl, size) }
+fun initializeFactories(storage: Storage, cacheSize: Int = (System.getProperty("cache.size") ?: "100").toInt()): Pair<PageCache, StorageAccessManager> {
+    println("=".repeat(80))
+    println("Cache factory: ${System.getProperty("cache.impl")}")
+    println("Cache size: $cacheSize")
+    CacheManager.factory = { strg, size ->
+        when (System.getProperty("cache.impl")) {
+            "none" -> NonePageCacheImpl(strg)
+            else -> SimplePageCacheImpl(strg, size)
+        }
+    }
 
     val cache = CacheManager.factory(storage, cacheSize)
     val simpleAccessManager = SimpleStorageAccessManager(cache)

@@ -125,7 +125,7 @@ open class SimplePageCacheImpl(internal val storage: Storage, private val maxCac
     private fun recordCacheHit(isCacheHit: Boolean) =
         if (isCacheHit) statsImpl.cacheHitCount += 1 else statsImpl.cacheMissCount += 1
 
-    private fun CachedPageImpl.write() {
+    internal fun CachedPageImpl.write() {
         if (this.isDirty) {
             storage.write(this.diskPage)
         }
@@ -145,46 +145,34 @@ open class SimplePageCacheImpl(internal val storage: Storage, private val maxCac
     }
 }
 
-class SubcacheImpl(private val mainCache: SimplePageCacheImpl, private val maxCacheSize: Int): PageCache {
+internal class NoCachedPageImpl(private val storage: Storage, diskPage: DiskPage) : CachedPageImpl(diskPage, 0) {
+    override fun close() {
+        if (this.isDirty) {
+            storage.write(this.diskPage)
+        }
+        this._isDirty = false
+        super.close()
+    }
+}
+
+class NonePageCacheImpl(private val storage: Storage): PageCache {
+    override fun load(startPageId: PageId, pageCount: Int) {
+        storage.bulkRead(startPageId, pageCount) {
+            // We do nothing with the pages that we read
+        }
+    }
+
+    override fun get(pageId: PageId): CachedPage =
+        NoCachedPageImpl(storage, storage.read(pageId))
+
+
+    override fun getAndPin(pageId: PageId): CachedPage = get(pageId)
+
+    override fun flush() {
+        // No cache -- no flush
+    }
+
     private val statsImpl = StatsImpl()
     override val stats: PageCacheStats get() = statsImpl
-    private val subcachePages = mutableSetOf<PageId>()
-
-    override val capacity = maxCacheSize
-
-    override fun load(startPageId: PageId, pageCount: Int) {
-        mainCache.doLoad(startPageId, pageCount, this::doAddPage)
-    }
-
-    override fun get(pageId: PageId) = doGetAndPin(pageId, 0)
-
-    override fun getAndPin(pageId: PageId): CachedPage = doGetAndPin(pageId, 1)
-    private fun doGetAndPin(pageId: PageId, pinIncrement: Int): CachedPage {
-        val localCacheHit = subcachePages.contains(pageId)
-        if (localCacheHit) statsImpl.cacheHitCount += 1 else statsImpl.cacheMissCount += 1
-        return mainCache.doGetAndPin(pageId, this::doAddPage, pinIncrement)
-    }
-
-    private fun doAddPage(page: DiskPage): CachedPageImpl {
-        val result = CachedPageImpl(page, 0)
-        if (subcachePages.size == maxCacheSize) {
-            evictCandidate().let {
-                mainCache.swap(it, result)
-                subcachePages.remove(it.diskPage.id)
-            }
-        } else {
-            synchronized(mainCache.cacheArray) {
-                mainCache.cacheArray.add(result)
-            }
-        }
-        subcachePages.add(page.id)
-        return result
-    }
-
-  override fun flush() {
-        subcachePages.mapNotNull { mainCache.cache[it] }.forEach { page -> mainCache.storage.write(page.diskPage) }
-    }
-
-    private fun evictCandidate(): CachedPageImpl =
-        mainCache.cache[subcachePages.first()]!!
+    override val capacity: Int = Int.MAX_VALUE
 }

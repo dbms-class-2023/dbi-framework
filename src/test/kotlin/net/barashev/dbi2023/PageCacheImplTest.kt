@@ -18,15 +18,22 @@
 
 package net.barashev.dbi2023
 
+import net.barashev.dbi2023.app.initializeFactories
 import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
-private fun createCache(storage: Storage, maxCacheSize: Int = -1): PageCache = SimplePageCacheImpl(storage, maxCacheSize)
+private fun createCache(storage: Storage, maxCacheSize: Int = -1): PageCache = CacheManager.factory(storage, maxCacheSize)
 
 class PageCacheImplTest {
+    var storage = createHardDriveEmulatorStorage()
+    @BeforeEach
+    fun setupAll() {
+        storage = createHardDriveEmulatorStorage()
+        initializeFactories(storage)
+    }
     @Test
     fun `basic test - cache loads pages from the storage and writes them back`() {
-        val storage = createHardDriveEmulatorStorage()
         val cache = createCache(storage)
         val pageId = storage.read(1).also { page ->
             page.putRecord(TestRecord(1,1).toByteArray(), 0)
@@ -45,7 +52,6 @@ class PageCacheImplTest {
 
     @Test
     fun `pin after load costs zero`() {
-        val storage = createHardDriveEmulatorStorage()
         val cache = createCache(storage)
         val pageId = storage.read(1).also { page ->
             page.putRecord(TestRecord(1,1).toByteArray(), 0)
@@ -60,12 +66,10 @@ class PageCacheImplTest {
 
     @Test
     fun `sequential load costs less than random gets`() {
-        val storage = createHardDriveEmulatorStorage().also { storage ->
-            (1 .. 20).forEach { idx ->
-                storage.read(idx).also { page ->
-                    page.putRecord(TestRecord(idx, idx).toByteArray())
-                    storage.write(page)
-                }
+        (1 .. 20).forEach { idx ->
+            storage.read(idx).also { page ->
+                page.putRecord(TestRecord(idx, idx).toByteArray())
+                storage.write(page)
             }
         }
         val cache = createCache(storage)
@@ -80,7 +84,6 @@ class PageCacheImplTest {
 
     @Test
     fun `pages are evicted when cache is full`() {
-        val storage = createHardDriveEmulatorStorage()
         val cache = createCache(storage, maxCacheSize = 5)
         cache.load(1, 5)
         val cost1 = storage.totalAccessCost
@@ -96,12 +99,4 @@ class PageCacheImplTest {
 
         assertTrue(cost3 > cost2)
     }
-
-    @Test
-    fun `test take drop`() {
-        (1..10).toList().let {
-            assertEquals(it, it.take(4) + it.drop(4))
-        }
-    }
-
 }

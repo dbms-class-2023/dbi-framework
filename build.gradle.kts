@@ -36,8 +36,11 @@ dependencies {
     testImplementation(kotlin("test"))
 }
 
+val systemProps by extra {arrayOf("cache.impl", "cache.size")}
+
 tasks.test {
     useJUnitPlatform()
+    systemProperties = System.getProperties().mapKeys { it.key.toString() }.filterKeys { it in systemProps }
 }
 
 tasks.withType<KotlinCompile> {
@@ -46,4 +49,5 @@ tasks.withType<KotlinCompile> {
 
 application {
     mainClass.set("net.barashev.dbi2023.app.MainKt")
+    applicationDefaultJvmArgs = System.getProperties().filterKeys { it in systemProps }.map { "-D${it.key}=${it.value}"}
 }

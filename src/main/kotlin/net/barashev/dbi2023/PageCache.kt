@@ -78,7 +78,5 @@ interface PageCacheStats {
 }
 
 object CacheManager {
-    var factory: (Storage, Int) -> PageCache = { storage, size ->
-        SimplePageCacheImpl(storage, size)
-    }
+    var factory: (Storage, Int) -> PageCache = { _, _ -> error("Please initialize the cache factory") }
 }

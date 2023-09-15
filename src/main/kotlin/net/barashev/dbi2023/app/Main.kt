@@ -27,7 +27,7 @@ import net.barashev.dbi2023.createHardDriveEmulatorStorage
 fun main(args: Array<String>) = DBI2023().main(args)
 
 class DBI2023: CliktCommand() {
-    val cacheSize: Int by option(help="Page cache size [default=100]").int().default(100)
+    val cacheSize: Int by option(help="Page cache size [default=100]").int().default(System.getProperty("cache.size", "100").toInt())
     val dataScale: Int by option(help="Test data scale [default=1]").int().default(1)
     val randomDataSize by option(help="Shall the generated data amount be random [default=false]").flag(default = false)
     val joinClause: String by option(help="JOIN clause, e.g. 'planet.id:flight.planet_id'").default("")
