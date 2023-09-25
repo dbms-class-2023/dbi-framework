@@ -75,6 +75,7 @@ interface PageCache {
 interface PageCacheStats {
     val cacheHit: Int
     val cacheMiss: Int
+    fun reset()
 }
 
 object CacheManager {

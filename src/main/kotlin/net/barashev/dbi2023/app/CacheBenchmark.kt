@@ -21,6 +21,7 @@ package net.barashev.dbi2023.app
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
+import com.github.ajalt.clikt.parameters.types.double
 import com.github.ajalt.clikt.parameters.types.int
 import net.barashev.dbi2023.CachedPage
 import net.barashev.dbi2023.createHardDriveEmulatorStorage
@@ -32,6 +33,8 @@ class CacheBenchmark: CliktCommand() {
     val dataScale: Int by option(help="Test data scale [default=1]").int().default(1)
     val cacheSize: Int by option(help="Page cache size [default=100]").int().default(System.getProperty("cache.size", "100").toInt())
     val cacheImpl: String by option(help="Cache implementation [default=fifo]").default(System.getProperty("cache.impl", "fifo"));
+    val testFullScanChance: Double by option(help="The probability of a full scan of flight table [default=${(1/30.0)}]").double().default(1/30.0)
+    val testLongPinChance: Double by option(help="The probability of a full scan of flight table [default=${(1/3.0)}]").double().default(1/3.0)
     override fun run() {
         val storage = createHardDriveEmulatorStorage()
         val (cache, accessManager) = initializeFactories(storage, cacheSize, cacheImpl)
@@ -42,11 +45,12 @@ class CacheBenchmark: CliktCommand() {
         val flightPageCount = accessManager.pageCount("flight")
         val ticketPageCount = accessManager.pageCount("ticket")
 
-        val flightPages = accessManager.createFullScan("flight").pages().map { it.close(); it.id }.toList()
         val ticketPages = accessManager.createFullScan("ticket").pages().map { it.close(); it.id }.toList()
-        val pageWorkingSet = (flightPages + ticketPages).shuffled().toList()
+        val pageWorkingSet = ticketPages.shuffled().toList()
 
         println("Page count: planet=$planetPages spacecraft=$spacecraftPages flight=$flightPageCount ticket=$ticketPageCount")
+        println(cache.stats)
+        cache.stats.reset()
 
         val accessCost1 = storage.totalAccessCost
         val random = Random().also { it.setSeed(System.currentTimeMillis()) }
@@ -58,7 +62,7 @@ class CacheBenchmark: CliktCommand() {
         repeat(1000) {
             // With some probability we will do a full scan of a pretty large table, that will possible replace many
             // pages in the cache.
-            if (random.nextInt(10) == 1) {
+            if (random.nextDouble() < testFullScanChance) {
                 accessManager.createFullScan("flight").pages().forEach { it.close() }
                 fullScanCount += 1
             }
@@ -69,8 +73,7 @@ class CacheBenchmark: CliktCommand() {
                 donePages.clear()
             }
 
-            // Now generate a random page to fetch. We use Gaussian distribution, and most likely will be fetching
-            // from the middle of the page list.
+            // Now generate a random page to fetch.
             val pageNumber = random.nextGaussian(pageWorkingSet.size/2.0, pageWorkingSet.size/2.0).toInt()
                 .let { max(it, 0) }.let { min(it, pageWorkingSet.size - 1) }
 
@@ -79,7 +82,7 @@ class CacheBenchmark: CliktCommand() {
             val page = cache.getAndPin(pageWorkingSet[pageNumber])
             // With some probability we will "long pin" the page, as if there is a relatively long transaction
             // that modifies the page.
-            if (pinnedPages.size < cacheSize - 1 && random.nextInt(3) == 1) {
+            if (pinnedPages.size < cacheSize - 1 && random.nextDouble() < testLongPinChance) {
                 if (pinnedPages.firstOrNull { it.id == pageId } == null) {
                     pinnedPages.add(page)
                     longPinCount += 1
@@ -91,9 +94,7 @@ class CacheBenchmark: CliktCommand() {
         }
         pinnedPages.forEach { it.close() }
         println("Access cost: ${storage.totalAccessCost - accessCost1}")
-        cache.stats.let {
-            println("Cache hit ratio: ${it.cacheHit/(it.cacheMiss.toDouble() + it.cacheHit.toDouble())} (${it.cacheHit}/${it.cacheMiss+it.cacheHit})")
-        }
+        println(cache.stats)
         println("Test stats: #full scans=$fullScanCount #long pins=$longPinCount, max long pin count=$maxLongPinCount")
 
 

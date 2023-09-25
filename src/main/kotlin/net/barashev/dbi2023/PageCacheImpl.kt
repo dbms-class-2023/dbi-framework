@@ -18,11 +18,26 @@
 
 package net.barashev.dbi2023
 
+import kotlin.math.round
+
 internal data class StatsImpl(var cacheHitCount: Int = 0, var cacheMissCount: Int = 0): PageCacheStats {
     override val cacheHit: Int
         get() = cacheHitCount
     override val cacheMiss: Int
         get() = cacheMissCount
+
+    override fun reset() {
+        cacheHitCount = 0
+        cacheMissCount = 0
+    }
+
+    val addTracker = mutableMapOf<PageId, Int>()
+    override fun toString(): String {
+        return """Cache stats:
+            hit ratio=${round(100.0*cacheHitCount/(cacheHitCount+cacheMissCount))} hits=$cacheHitCount misses=$cacheMissCount
+            pages loaded >10 times:
+            ${addTracker.filterValues { it > 10 }})"""
+    }
 }
 
 internal open class CachedPageImpl(
@@ -107,6 +122,7 @@ open class SimplePageCacheImpl(internal val storage: Storage, private val maxCac
                 this.cacheArray.add(result)
             }
         }
+        statsImpl.addTracker[page.id] = (statsImpl.addTracker[page.id] ?: 0) + 1
         return result
     }
 
@@ -116,10 +132,14 @@ open class SimplePageCacheImpl(internal val storage: Storage, private val maxCac
 
     internal fun swap(victim: CachedPageImpl, newPage: CachedPageImpl) {
         victim.write()
-        synchronized(cacheArray) {
-            val idx = cacheArray.indexOf(victim)
-            cacheArray[idx] = newPage
-        }
+        synchronized(cacheArray) { doSwap(victim, newPage) }
+    }
+
+    // By default we place the new page at the same index where the victim used to be.
+    // Override this to implement your own swap policy.
+    internal open fun doSwap(victim: CachedPageImpl, newPage: CachedPageImpl) {
+        val idx = cacheArray.indexOf(victim)
+        cacheArray[idx] = newPage
     }
 
     private fun recordCacheHit(isCacheHit: Boolean) =
@@ -175,4 +195,11 @@ class NonePageCacheImpl(private val storage: Storage): PageCache {
     private val statsImpl = StatsImpl()
     override val stats: PageCacheStats get() = statsImpl
     override val capacity: Int = Int.MAX_VALUE
+}
+
+class FifoPageCacheImpl(storage: Storage, maxCacheSize: Int): SimplePageCacheImpl(storage, maxCacheSize) {
+    override fun doSwap(victim: CachedPageImpl, newPage: CachedPageImpl) {
+        cacheArray.remove(victim)
+        cacheArray.add(newPage)
+    }
 }
