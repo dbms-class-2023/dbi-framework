@@ -29,7 +29,7 @@ fun initializeFactories(
     cacheImpl: String = System.getProperty("cache.impl", "fifo")
     ): Pair<PageCache, StorageAccessManager> {
     println("=".repeat(80))
-    println("Cache factory: ${System.getProperty("cache.impl")}")
+    println("Cache policy: $cacheImpl")
     println("Cache size: $cacheSize")
     CacheManager.factory = { strg, size ->
         when (cacheImpl) {
