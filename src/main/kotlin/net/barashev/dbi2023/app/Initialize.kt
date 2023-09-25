@@ -23,12 +23,16 @@ import net.barashev.dbi2023.*
 /**
  * Feel free to change this code and add your own factories.
  */
-fun initializeFactories(storage: Storage, cacheSize: Int = (System.getProperty("cache.size") ?: "100").toInt()): Pair<PageCache, StorageAccessManager> {
+fun initializeFactories(
+    storage: Storage,
+    cacheSize: Int = (System.getProperty("cache.size") ?: "100").toInt(),
+    cacheImpl: String = System.getProperty("cache.impl", "fifo")
+    ): Pair<PageCache, StorageAccessManager> {
     println("=".repeat(80))
     println("Cache factory: ${System.getProperty("cache.impl")}")
     println("Cache size: $cacheSize")
     CacheManager.factory = { strg, size ->
-        when (System.getProperty("cache.impl")) {
+        when (cacheImpl) {
             "none" -> NonePageCacheImpl(strg)
             else -> SimplePageCacheImpl(strg, size)
         }

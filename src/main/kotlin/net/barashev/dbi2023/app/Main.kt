@@ -18,15 +18,20 @@
 package net.barashev.dbi2023.app
 
 import com.github.ajalt.clikt.core.CliktCommand
+import com.github.ajalt.clikt.core.subcommands
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.types.int
 import net.barashev.dbi2023.createHardDriveEmulatorStorage
 
-fun main(args: Array<String>) = DBI2023().main(args)
+fun main(args: Array<String>) = Main().subcommands(SmokeTest(), CacheBenchmark()).main(args)
 
-class DBI2023: CliktCommand() {
+class Main: CliktCommand() {
+    override fun run() = Unit
+}
+
+class SmokeTest: CliktCommand() {
     val cacheSize: Int by option(help="Page cache size [default=100]").int().default(System.getProperty("cache.size", "100").toInt())
     val dataScale: Int by option(help="Test data scale [default=1]").int().default(1)
     val randomDataSize by option(help="Shall the generated data amount be random [default=false]").flag(default = false)
@@ -43,7 +48,7 @@ class DBI2023: CliktCommand() {
         val populateCost = storage.totalAccessCost
         println("The cost to populate tables: ${populateCost}")
         println("Now we will print the contents of all tables")
-        // TODO: write your code here
+
         println("Planet table:")
         accessManager.createFullScan("planet").records { planetRecord(it) }.forEach { println(it) }
 
@@ -58,9 +63,9 @@ class DBI2023: CliktCommand() {
         println()
         println("Ticket table:")
         accessManager.createFullScan("ticket").records { ticketRecord(it) }.forEach { println(it) }
-
+        println("Total cost: ${storage.totalAccessCost}. Scan cost: ${storage.totalAccessCost - populateCost}")
     }
-
 }
+
 
 
