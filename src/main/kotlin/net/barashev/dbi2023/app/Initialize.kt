@@ -34,7 +34,7 @@ fun initializeFactories(
     CacheManager.factory = { strg, size ->
         when (cacheImpl) {
             "none" -> NonePageCacheImpl(strg)
-            else -> SimplePageCacheImpl(strg, size)
+            else -> FifoPageCacheImpl(strg, size)
         }
     }
 
