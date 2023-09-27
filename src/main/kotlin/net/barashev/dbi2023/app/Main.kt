@@ -33,6 +33,9 @@ class Main: CliktCommand() {
 
 class SmokeTest: CliktCommand() {
     val cacheSize: Int by option(help="Page cache size [default=100]").int().default(System.getProperty("cache.size", "100").toInt())
+    val cacheImpl: String by option(help="Cache implementation [default=fifo]").default(System.getProperty("cache.impl", "fifo"));
+    val sortImpl: String by option(help="Merge sort implementation [default=fake]").default(System.getProperty("sort.impl", "fake"))
+
     val dataScale: Int by option(help="Test data scale [default=1]").int().default(1)
     val randomDataSize by option(help="Shall the generated data amount be random [default=false]").flag(default = false)
     val joinClause: String by option(help="JOIN clause, e.g. 'planet.id:flight.planet_id'").default("")
@@ -42,7 +45,7 @@ class SmokeTest: CliktCommand() {
 
     override fun run() {
         val storage = createHardDriveEmulatorStorage()
-        val (cache, accessManager) = initializeFactories(storage, cacheSize)
+        val (cache, accessManager) = initializeFactories(storage, cacheSize, cacheImpl, sortImpl)
         DataGenerator(accessManager, cache, dataScale, !randomDataSize, disableStatistics).use{}
 
         val populateCost = storage.totalAccessCost
