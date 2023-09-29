@@ -19,6 +19,7 @@
 package net.barashev.dbi2023.app
 
 import net.barashev.dbi2023.*
+import net.barashev.dbi2023.fake.FakeMergeSort
 
 /**
  * Feel free to change this code and add your own factories.
@@ -26,7 +27,8 @@ import net.barashev.dbi2023.*
 fun initializeFactories(
     storage: Storage,
     cacheSize: Int = (System.getProperty("cache.size") ?: "100").toInt(),
-    cacheImpl: String = System.getProperty("cache.impl", "fifo")
+    cacheImpl: String = System.getProperty("cache.impl", "fifo"),
+    sortImpl: String = System.getProperty("sort.impl", "fake")
     ): Pair<PageCache, StorageAccessManager> {
     println("=".repeat(80))
     println("Cache policy: $cacheImpl")
@@ -35,6 +37,12 @@ fun initializeFactories(
         when (cacheImpl) {
             "none" -> NonePageCacheImpl(strg)
             else -> FifoPageCacheImpl(strg, size)
+        }
+    }
+    Operations.sortFactory = { strg, cache ->
+        when (sortImpl) {
+            "real" -> TODO("Create your merge sort instance here")
+            else -> FakeMergeSort(strg, cache)
         }
     }
 
