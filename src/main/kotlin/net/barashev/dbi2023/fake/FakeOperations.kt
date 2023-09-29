@@ -37,3 +37,44 @@ class FakeMergeSort(private val storageAccessManager: StorageAccessManager, priv
         return "output"
     }
 }
+
+/**
+ * Fake hash table that keeps all its records in memory.
+ */
+class FakeHashTable<T>(private val bucketTable: List<Pair<Bucket, List<ByteArray>>>, private val hashKey: Function<ByteArray, T>): Hashtable<T> {
+    override val buckets: List<Bucket>
+        get() = bucketTable.map { it.first }
+
+    override fun <T> find(key: T): Iterable<ByteArray> {
+        val hashCode = key.hashCode() % bucketTable.size
+        return bucketTable[hashCode].second.filter { hashKey.apply(it) == key }
+    }
+}
+
+/**
+ * Fake hash table builder that creates hash tables in memory.
+ */
+class FakeHashTableBuilder(private val storageAccessManager: StorageAccessManager, private val cache: PageCache): HashtableBuilder {
+
+    override fun <T> hash(tableName: String, bucketCount: Int, hashKey: Function<ByteArray, T>): Hashtable<T> {
+        val bucketTable = mutableListOf<Pair<Bucket, MutableList<ByteArray>>>()
+        repeat(bucketCount) {
+            bucketTable.add(
+                Bucket(it, "${tableName}_hash_${kotlin.random.Random.nextInt()}_${it}", 1)
+                    to mutableListOf()
+            )
+        }
+        storageAccessManager.createFullScan(tableName).pages().forEach {page ->
+            page.allRecords().values.forEach {getRecord ->
+                if (getRecord.isOk) {
+                    val record = getRecord.bytes
+                    val key = hashKey.apply(record)
+                    val hashCode = key.hashCode() % bucketCount
+                    bucketTable[hashCode].second.add(record)
+                }
+            }
+        }
+        return FakeHashTable(bucketTable, hashKey)
+    }
+
+}

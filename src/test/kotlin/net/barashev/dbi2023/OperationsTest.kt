@@ -16,13 +16,16 @@
 
 package net.barashev.dbi2023
 
+import net.barashev.dbi2023.fake.FakeHashTableBuilder
 import net.barashev.dbi2023.fake.FakeMergeSort
+import net.datafaker.Faker
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class OperationsTest  {
     @Test
-    fun `merge sort`() {
+    fun `merge sort smoke test`() {
         Operations.sortFactory = { accessMethodManager, pageCache -> FakeMergeSort(accessMethodManager, pageCache) }
         val storage = createHardDriveEmulatorStorage()
         val cache = FifoPageCacheImpl(storage, 20)
@@ -39,5 +42,32 @@ class OperationsTest  {
         assertEquals((1..10000).toList(), accessMethodManager.createFullScan(outTable).records {
             intField().first.fromBytes(it).first
         }.toList())
+    }
+
+    @Test
+    fun `hash table smoke test`() {
+        Operations.hashFactory = { storageAccessManager, pageCache -> FakeHashTableBuilder(storageAccessManager, pageCache) }
+
+        val faker = Faker()
+        val storage = createHardDriveEmulatorStorage()
+        val cache = FifoPageCacheImpl(storage, 20)
+        val accessMethodManager = SimpleStorageAccessManager(cache)
+        val fooOid = accessMethodManager.createTable("foo")
+        TableBuilder(accessMethodManager, cache, fooOid).let {builder ->
+            (1..10000).shuffled().forEach {
+                builder.insert(Record2(intField(it), stringField(faker.name().fullName())).asBytes())
+            }
+        }
+        val hashTable = Operations.hashFactory(accessMethodManager, cache).let { builder ->
+            builder.hash("foo", 10) {
+                Record2(intField(), stringField()).fromBytes(it).value1
+            }
+        }
+        assertEquals(10, hashTable.buckets.size)
+        (1..10000).forEach {
+            assertTrue(hashTable.find(it).toList().isNotEmpty())
+        }
+        assertTrue(hashTable.find(10001).toList().isEmpty())
+
     }
 }

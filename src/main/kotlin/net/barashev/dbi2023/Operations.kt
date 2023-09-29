@@ -37,22 +37,39 @@ interface MultiwayMergeSort : AutoCloseable {
 }
 
 /**
+ * This builder object takes the input table and hashes its records using the hash key extracted by the provided function.
+ * The builder shall close all resources that it might open when building the result.
+ *
+ * @param input table name
+ * @param bucketCount how many buckets shall be in the result
+ * @param hashKey function for extracting the hash key values from the input table records
+ */
+interface HashtableBuilder {
+    /**
+     * Hashes the input table records using bucketCount buckets and keys returned by hashKey function.
+     * @return a list of created buckets metadata, in the ascending order of bucket numbers.
+     */
+    fun <T> hash(tableName: String, bucketCount: Int, hashKey: Function<ByteArray, T>): Hashtable<T>
+}
+
+/**
  * Hash table bucket with 0-based bucket number, name of a temporary table where bucket records are stored and
  * the total count of pages in the bucket.
  */
 data class Bucket(val num: Int, val tableName: String, val pageCount: Int)
 
-interface Hashtable : AutoCloseable {
-    /**
-     * Hashes the input table records using bucketCount buckets and keys returned by hashKey function.
-     * @return a list of created buckets metadata, in the ascending order of bucket numbers.
-     */
-    fun <T> hash(tableName: String, bucketCount: Int, hashKey: Function<ByteArray, T>): List<Bucket>
+/**
+ * A simple interface to already built hash table.
+ */
+interface Hashtable<T> {
+    /** A list of buckets in this hash table */
+    val buckets: List<Bucket>
 
     /**
-     * Releases all the temporary resources, such as intermediate tables.
+     * Finds the records with the given value of the hash key. Returns an object that allows for iteration over such rows.
+     * Returns empty list if there are no records by the given search key.
      */
-    override fun close() {}
+    fun <T> find(key: T): Iterable<ByteArray>
 }
 
 object Operations {
@@ -68,11 +85,11 @@ object Operations {
     }
 
     /**
-     * Creates an instance of a hashtable using the given storage access manager and page cache.
+     * Creates an instance of a hashtable builder using the given storage access manager and page cache.
      */
-    var hashFactory: (StorageAccessManager, PageCache) -> Hashtable = { _, _ ->
-        object : Hashtable {
-            override fun <T> hash(tableName: String, bucketCount: Int, hashKey: Function<ByteArray, T>): List<Bucket> {
+    var hashFactory: (StorageAccessManager, PageCache) -> HashtableBuilder = { _, _ ->
+        object : HashtableBuilder {
+            override fun <T> hash(tableName: String, bucketCount: Int, hashKey: Function<ByteArray, T>): Hashtable<T> {
                 TODO("""Please DO NOT write your code here! Set the factory instance where you need it: Operations.hashFactory = """)
             }
         }
