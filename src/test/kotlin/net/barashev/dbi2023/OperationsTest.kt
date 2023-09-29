@@ -16,18 +16,22 @@
 
 package net.barashev.dbi2023
 
-import net.barashev.dbi2023.fake.FakeHashTableBuilder
-import net.barashev.dbi2023.fake.FakeMergeSort
+import net.barashev.dbi2023.app.initializeFactories
 import net.datafaker.Faker
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class OperationsTest  {
+    private lateinit var storage: Storage
+    @BeforeEach
+    fun initialize() {
+        storage = createHardDriveEmulatorStorage()
+        initializeFactories(storage)
+    }
     @Test
     fun `merge sort smoke test`() {
-        Operations.sortFactory = { accessMethodManager, pageCache -> FakeMergeSort(accessMethodManager, pageCache) }
-        val storage = createHardDriveEmulatorStorage()
         val cache = FifoPageCacheImpl(storage, 20)
         val accessMethodManager = SimpleStorageAccessManager(cache)
         val fooOid = accessMethodManager.createTable("foo")
@@ -46,8 +50,6 @@ class OperationsTest  {
 
     @Test
     fun `hash table smoke test`() {
-        Operations.hashFactory = { storageAccessManager, pageCache -> FakeHashTableBuilder(storageAccessManager, pageCache) }
-
         val faker = Faker()
         val storage = createHardDriveEmulatorStorage()
         val cache = FifoPageCacheImpl(storage, 20)

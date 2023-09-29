@@ -19,6 +19,7 @@
 package net.barashev.dbi2023.app
 
 import net.barashev.dbi2023.*
+import net.barashev.dbi2023.fake.FakeHashTableBuilder
 import net.barashev.dbi2023.fake.FakeMergeSort
 
 /**
@@ -28,7 +29,8 @@ fun initializeFactories(
     storage: Storage,
     cacheSize: Int = (System.getProperty("cache.size") ?: "100").toInt(),
     cacheImpl: String = System.getProperty("cache.impl", "fifo"),
-    sortImpl: String = System.getProperty("sort.impl", "fake")
+    sortImpl: String = System.getProperty("sort.impl", "fake"),
+    hashImpl: String = System.getProperty("hash.impl", "fake"),
     ): Pair<PageCache, StorageAccessManager> {
     println("=".repeat(80))
     println("Cache policy: $cacheImpl")
@@ -43,6 +45,12 @@ fun initializeFactories(
         when (sortImpl) {
             "real" -> TODO("Create your merge sort instance here")
             else -> FakeMergeSort(strg, cache)
+        }
+    }
+    Operations.hashFactory = { storageAccessManager, pageCache ->
+        when (hashImpl) {
+            "real" -> TODO("Create your hash builder instance here")
+            else -> FakeHashTableBuilder(storageAccessManager, pageCache)
         }
     }
 
