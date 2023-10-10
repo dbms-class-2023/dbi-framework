@@ -98,9 +98,14 @@ private fun DataGenerator.populateFlights(flightCount: Int, planetCount: Int, sp
 
 private fun DataGenerator.populateTickets(ticketCount: Int, flightCount: Int) {
     (1..ticketCount).forEach {
-        TicketRecord(intField(Random.nextInt(flightCount)), stringField(faker.name().fullName()), doubleField(Random.nextDouble(50.0, 200.0))).also {
-            ticketBuilder.insert(it.asBytes())
-        }
+        insertTicket(Random.nextInt(flightCount), faker.name().fullName(), Random.nextDouble(50.0, 200.0))
     }
+}
+
+fun DataGenerator.insertTicket(flightNum: Int, fullName: String, ticketPrice: Double) {
+    TicketRecord(intField(flightNum), stringField(fullName), doubleField(ticketPrice)).also {
+        ticketBuilder.insert(it.asBytes())
+    }
+
 }
 

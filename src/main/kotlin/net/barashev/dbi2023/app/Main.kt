@@ -25,7 +25,7 @@ import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.types.int
 import net.barashev.dbi2023.createHardDriveEmulatorStorage
 
-fun main(args: Array<String>) = Main().subcommands(SmokeTest(), CacheBenchmark(), SortBenchmark()).main(args)
+fun main(args: Array<String>) = Main().subcommands(SmokeTest(), CacheBenchmark(), SortBenchmark(), HashBenchmark()).main(args)
 
 class Main: CliktCommand() {
     override fun run() = Unit

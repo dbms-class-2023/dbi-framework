@@ -18,6 +18,7 @@ package net.barashev.dbi2023.fake
 
 import net.barashev.dbi2023.*
 import java.util.function.Function
+import kotlin.math.absoluteValue
 
 /**
  * This is a fake merge sort that sorts the whole input in-memory.
@@ -46,7 +47,7 @@ class FakeHashTable<T>(private val bucketTable: List<Pair<Bucket, List<ByteArray
         get() = bucketTable.map { it.first }
 
     override fun <T> find(key: T): Iterable<ByteArray> {
-        val hashCode = key.hashCode() % bucketTable.size
+        val hashCode = key.hashCode().absoluteValue % bucketTable.size
         return bucketTable[hashCode].second.filter { hashKey.apply(it) == key }
     }
 }
@@ -69,7 +70,7 @@ class FakeHashTableBuilder(private val storageAccessManager: StorageAccessManage
                 if (getRecord.isOk) {
                     val record = getRecord.bytes
                     val key = hashKey.apply(record)
-                    val hashCode = key.hashCode() % bucketCount
+                    val hashCode = key.hashCode().absoluteValue % bucketCount
                     bucketTable[hashCode].second.add(record)
                 }
             }

@@ -20,6 +20,7 @@ package net.barashev.dbi2023.app
 
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.options.default
+import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.types.int
 import net.barashev.dbi2023.Operations
@@ -30,9 +31,14 @@ class SortBenchmark: CliktCommand() {
     val dataScale: Int by option(help="Test data scale [default=1]").int().default(1)
     val cacheSize: Int by option(help="Page cache size [default=100]").int().default(System.getProperty("cache.size", "100").toInt())
     val cacheImpl: String by option(help="Cache implementation [default=fifo]").default(System.getProperty("cache.impl", "fifo"));
+    val realSort by option(help="Use the real multiway merge sort implementation [default=false]").flag()
+
     override fun run() {
         val storage = createHardDriveEmulatorStorage()
-        val (cache, accessManager) = initializeFactories(storage, cacheSize, cacheImpl)
+        val (cache, accessManager) = initializeFactories(storage = storage, cacheSize = cacheSize,
+            cacheImpl = cacheImpl,
+            sortImpl = if (realSort) "real" else "fake"
+        )
         DataGenerator(accessManager, cache, dataScale, fixedRowCount = true, disableStatistics = true).use{}
 
         val planetPages = accessManager.pageCount("planet")
