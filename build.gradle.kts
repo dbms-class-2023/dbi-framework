@@ -36,7 +36,7 @@ dependencies {
     testImplementation(kotlin("test"))
 }
 
-val systemProps by extra {arrayOf("cache.impl", "cache.size")}
+val systemProps by extra {arrayOf("cache.impl", "cache.size", "sort.impl", "hash.impl")}
 
 tasks.test {
     useJUnitPlatform()
