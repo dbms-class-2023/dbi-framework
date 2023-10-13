@@ -16,6 +16,7 @@
 package net.barashev.dbi2023
 
 import java.util.function.Function
+import kotlin.Result.Companion.success
 
 /**
  * This operation sorts a table using order defined by Comparable objects parsed from the table records.
@@ -72,6 +73,44 @@ interface Hashtable<T> {
     fun <T> find(key: T): Iterable<ByteArray>
 }
 
+enum class JoinAlgorithm {
+    NESTED_LOOPS, HASH, MERGE
+}
+
+/**
+ * Join operation operand. The algorithm will read records from the specified tables and will parse them using
+ * joinAttribute function which is supposed to return a value of a join attribute for each record.
+ */
+data class JoinOperand<T>(val tableName: String, val joinAttribute: Function<ByteArray, T>)
+
+/**
+ * Join output, an iterator over the joined pairs.
+ * Calling close() on the iterator closes the join operation.
+ */
+interface JoinOutput: Iterator<Pair<ByteArray, ByteArray>>, AutoCloseable
+
+/**
+ * Objects implementing this interface can join tables.
+ * This interface it closeable, and it is the responsibility of this object client to call close() on it or
+ * on the returned iterator when the work is done.
+ */
+interface InnerJoin : AutoCloseable {
+
+    /**
+     * Performs an inner join of the given tables and writes the matching records to the output consumer.
+     * In pairs passed to the output consumer
+     * @return iterator over the join output. The first component of the returned pairs comes from the "left" operand
+     *         and the second component comes from the "right" operand.
+     *         Calling close() on the iterator closes the join operation, and vice versa.
+     */
+    fun <T: Comparable<T>> join(leftTable: JoinOperand<T>, rightTable: JoinOperand<T>): JoinOutput
+
+    /**
+     * Closes this operation and the result iterator.
+     */
+    override fun close() {}
+}
+
 object Operations {
     /**
      * Creates an instance of MultiwayMergeSort using the given storage access manager and page cache.
@@ -93,6 +132,17 @@ object Operations {
                 TODO("""Please DO NOT write your code here! Set the factory instance where you need it: Operations.hashFactory = """)
             }
         }
+    }
+
+    /**
+     * Creates an instance of an inner join.
+     */
+    var innerJoinFactory: (StorageAccessManager, PageCache, JoinAlgorithm) -> Result<InnerJoin> = { _, _, _ ->
+        success(object : InnerJoin {
+            override fun <T : Comparable<T>> join(leftTable: JoinOperand<T>, rightTable: JoinOperand<T>): JoinOutput {
+                TODO("""Please DO NOT write your code here! Set the factory instance where you need it: Operations.innerJoinFactory = """)
+            }
+        })
     }
 }
 

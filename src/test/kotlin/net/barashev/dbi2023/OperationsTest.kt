@@ -20,6 +20,8 @@ import net.barashev.dbi2023.app.initializeFactories
 import net.datafaker.Faker
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import java.util.*
+import kotlin.random.Random
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
@@ -72,4 +74,55 @@ class OperationsTest  {
         assertTrue(hashTable.find(10001).toList().isEmpty())
 
     }
+
+    @Test
+    fun `join smoke test`() {
+        val storage = createHardDriveEmulatorStorage()
+        val cache = SimplePageCacheImpl(storage, 20)
+        val accessMethodManager = SimpleStorageAccessManager(cache)
+        val fooOid = accessMethodManager.createTable("foo")
+
+        val faker = Faker()
+        cache.getAndPin(accessMethodManager.addPage(fooOid)).use {fooPage ->
+            (1..10).forEach { fooPage.putRecord(Record2(intField(it), stringField(faker.name().fullName())).asBytes()) }
+        }
+
+        val barOid = accessMethodManager.createTable("bar")
+        cache.getAndPin(accessMethodManager.addPage(barOid)).use {barPage ->
+            (1..20).forEach { barPage.putRecord(Record2(
+                intField(Random.nextInt(10)),
+                dateField(Date.from(faker.date().birthday().toInstant()))).asBytes()
+            ) }
+        }
+
+        JoinAlgorithm.values().forEach {joinAlgorithm ->
+            Operations.innerJoinFactory(accessMethodManager, cache, joinAlgorithm).map { it ->
+                it.join(
+                    JoinOperand("foo") { Record2(intField(), stringField()).fromBytes(it).value1 },
+                    JoinOperand("bar") { Record2(intField(), dateField()).fromBytes(it).value1 }
+                )
+            }.onSuccess {joinOutput ->
+                joinOutput.use {
+                    val outPairs = mutableListOf<Pair<Record2<Int, String>, Record2<Int, Date>>>()
+                    it.forEach {matchingTuples ->
+                        val leftRecord = Record2(intField(), stringField()).fromBytes(matchingTuples.first)
+                        val rightRecord = Record2(intField(), dateField()).fromBytes(matchingTuples.second)
+                        outPairs.add(leftRecord to rightRecord)
+                    }
+                    val comparator =
+                        compareBy<Pair<Record2<Int, String>, Record2<Int, Date>>> { it.first.value1 }
+                            .then(compareBy { it.second.value2 })
+                    outPairs.sortWith(comparator)
+                    outPairs.forEach {
+                        assertEquals(it.first.value1, it.second.value1)
+                        println(it.first)
+                        println(it.second)
+                        println("--------")
+                    }
+
+                }
+            }
+        }
+    }
+
 }
