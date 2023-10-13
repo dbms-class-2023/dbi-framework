@@ -21,6 +21,9 @@ package net.barashev.dbi2023.app
 import net.barashev.dbi2023.*
 import net.barashev.dbi2023.fake.FakeHashTableBuilder
 import net.barashev.dbi2023.fake.FakeMergeSort
+import net.barashev.dbi2023.fake.FakeNestedLoops
+import kotlin.Result.Companion.failure
+import kotlin.Result.Companion.success
 
 /**
  * Feel free to change this code and add your own factories.
@@ -51,6 +54,13 @@ fun initializeFactories(
         when (hashImpl) {
             "real" -> TODO("Create your hash builder instance here")
             else -> FakeHashTableBuilder(storageAccessManager, pageCache)
+        }
+    }
+    Operations.innerJoinFactory = { accessMethodManager, pageCache, joinAlgorithm ->
+        when (joinAlgorithm) {
+            JoinAlgorithm.NESTED_LOOPS -> success(FakeNestedLoops(accessMethodManager))
+            JoinAlgorithm.HASH -> failure(NotImplementedError("Hash-Join not implemented yet"))
+            JoinAlgorithm.MERGE -> failure(NotImplementedError("Sort-Merge-Join not implemented yet"))
         }
     }
 

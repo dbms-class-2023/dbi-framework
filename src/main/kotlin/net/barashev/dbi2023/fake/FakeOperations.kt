@@ -79,3 +79,36 @@ class FakeHashTableBuilder(private val storageAccessManager: StorageAccessManage
     }
 
 }
+
+/**
+ * This class implements a "fake" nested loop join.
+ * It keeps the whole output in memory (which is not always possible) and it scans the entire inner table
+ * for each record of the outer table.
+ */
+class FakeNestedLoops(private val storageAccessManager: StorageAccessManager) :
+    InnerJoin {
+    override fun <T : Comparable<T>> join(leftTable: JoinOperand<T>, rightTable: JoinOperand<T>): JoinOutput {
+        val output = mutableListOf<Pair<ByteArray, ByteArray>>()
+        storageAccessManager.createFullScan(leftTable.tableName).records { leftBytes ->
+            leftTable.joinAttribute.apply(leftBytes) to leftBytes
+        }.forEach {leftTuple ->
+            storageAccessManager.createFullScan(rightTable.tableName).records { rightBytes ->
+                rightTable.joinAttribute.apply(rightBytes) to rightBytes
+            }.forEach { rightTuple ->
+                if (leftTuple.first == rightTuple.first) {
+                    output.add(leftTuple.second to rightTuple.second)
+                }
+            }
+        }
+        return object : JoinOutput {
+            private val iterator = output.iterator()
+            override fun hasNext(): Boolean = iterator.hasNext()
+
+            override fun next(): Pair<ByteArray, ByteArray> = iterator.next()
+
+            override fun close() {
+            }
+
+        }
+    }
+}
