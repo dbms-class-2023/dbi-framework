@@ -58,6 +58,11 @@ class FakeHashTable<T>(private val bucketTable: List<Pair<Bucket, List<ByteArray
 class FakeHashTableBuilder(private val storageAccessManager: StorageAccessManager, private val cache: PageCache): HashtableBuilder {
 
     override fun <T> hash(tableName: String, bucketCount: Int, hashKey: Function<ByteArray, T>): Hashtable<T> {
+        println("""
+            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            !! ATTENTION: WE ARE USING FAKE HASH TABLE 
+            --------------------------------------------------
+        """.trimIndent())
         val bucketTable = mutableListOf<Pair<Bucket, MutableList<ByteArray>>>()
         repeat(bucketCount) {
             bucketTable.add(
@@ -88,6 +93,11 @@ class FakeHashTableBuilder(private val storageAccessManager: StorageAccessManage
 class FakeNestedLoops(private val storageAccessManager: StorageAccessManager) :
     InnerJoin {
     override fun <T : Comparable<T>> join(leftTable: JoinOperand<T>, rightTable: JoinOperand<T>): JoinOutput {
+        println("""
+            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            !! ATTENTION: WE ARE USING FAKE NESTED LOOPS JOIN
+            --------------------------------------------------
+        """.trimIndent())
         val output = mutableListOf<Pair<ByteArray, ByteArray>>()
         storageAccessManager.createFullScan(leftTable.tableName).records { leftBytes ->
             leftTable.joinAttribute.apply(leftBytes) to leftBytes

@@ -28,7 +28,7 @@ import net.barashev.dbi2023.Storage
 import net.barashev.dbi2023.StorageAccessManager
 import net.barashev.dbi2023.createHardDriveEmulatorStorage
 
-fun main(args: Array<String>) = Main().subcommands(SmokeTest(), CacheBenchmark(), SortBenchmark(), HashBenchmark()).main(args)
+fun main(args: Array<String>) = Main().subcommands(SmokeTest(), CacheBenchmark(), SortBenchmark(), HashBenchmark(), JoinBenchmark()).main(args)
 
 class Main: CliktCommand() {
     override fun run() = Unit
