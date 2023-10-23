@@ -23,9 +23,12 @@ import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.types.int
+import net.barashev.dbi2023.PageCache
+import net.barashev.dbi2023.Storage
+import net.barashev.dbi2023.StorageAccessManager
 import net.barashev.dbi2023.createHardDriveEmulatorStorage
 
-fun main(args: Array<String>) = Main().subcommands(SmokeTest(), CacheBenchmark(), SortBenchmark(), HashBenchmark()).main(args)
+fun main(args: Array<String>) = Main().subcommands(SmokeTest(), CacheBenchmark(), SortBenchmark(), HashBenchmark(), JoinBenchmark()).main(args)
 
 class Main: CliktCommand() {
     override fun run() = Unit
@@ -46,10 +49,44 @@ class SmokeTest: CliktCommand() {
     override fun run() {
         val storage = createHardDriveEmulatorStorage()
         val (cache, accessManager) = initializeFactories(storage, cacheSize, cacheImpl, sortImpl)
-        DataGenerator(accessManager, cache, dataScale, !randomDataSize, disableStatistics).use{}
+        DataGenerator(accessManager, cache, dataScale, !randomDataSize, disableStatistics).use {}
 
         val populateCost = storage.totalAccessCost
         println("The cost to populate tables: ${populateCost}")
+
+        if (joinClause.isNotBlank() || filterClause.isNotBlank()) {
+            executeQueryPlan(accessManager, cache, storage)
+        } else {
+            printTableContents(accessManager, storage)
+        }
+    }
+
+    private fun executeQueryPlan(accessManager: StorageAccessManager, cache: PageCache, storage: Storage) {
+        val cost0 = storage.totalAccessCost
+        val innerJoins = parseJoinClause(joinClause)
+        val filters = parseFilterClause(filterClause)
+        val plan = QueryPlan(innerJoins, filters)
+        println("We're executing the following query plan: $plan")
+
+        var rowCount = 0
+        val joinResult = QueryExecutor(accessManager, cache, tableRecordParsers, attributeValueParsers).run {
+            execute(plan)
+        }
+        val joinedTables = joinResult.realTables
+        accessManager.createFullScan(joinResult.tableName).records { bytes ->
+            parseJoinedRecord(bytes, joinedTables, tableRecordParsers)
+        }.forEach {
+            rowCount++
+            it.entries.forEach { (tableName, recordBytes) ->
+                println("$tableName: ${tableRecordParsers[tableName]!!.invoke(recordBytes)}")
+            }
+            println("----")
+        }
+        println("Execution cost: ${storage.totalAccessCost - cost0}")
+    }
+
+    fun printTableContents(accessManager: StorageAccessManager, storage: Storage) {
+        val cost0 = storage.totalAccessCost
         println("Now we will print the contents of all tables")
 
         println("Planet table:")
@@ -66,7 +103,7 @@ class SmokeTest: CliktCommand() {
         println()
         println("Ticket table:")
         accessManager.createFullScan("ticket").records { ticketRecord(it) }.forEach { println(it) }
-        println("Total cost: ${storage.totalAccessCost}. Scan cost: ${storage.totalAccessCost - populateCost}")
+        println("Total cost: ${storage.totalAccessCost}. Scan cost: ${storage.totalAccessCost - cost0}")
     }
 }
 
