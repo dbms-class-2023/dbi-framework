@@ -52,7 +52,15 @@ class JoinBenchmark: CliktCommand() {
                 it.join(
                     JoinOperand("flight") {flightRecord(it).value1 },
                     JoinOperand("ticket") { ticketRecord(it).value1 }
-                )
+                ).apply {
+                    println("""The results of flight JOIN ticket:
+                        |-------------------------------------------
+                    """.trimMargin())
+                }.forEach {
+                    println("Flight: ${flightRecord(it.first)}")
+                    println("Ticket: ${ticketRecord(it.second)}")
+                    println("-------------------")
+                }
                 println("Join cost: ${storage.totalAccessCost - cost0}")
                 println("Cache stats: ${cache.stats}")
             }
