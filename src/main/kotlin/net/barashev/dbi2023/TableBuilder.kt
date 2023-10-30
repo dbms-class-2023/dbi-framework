@@ -21,19 +21,20 @@ package net.barashev.dbi2023
  * by providing one simple insert method.
  */
 class TableBuilder(private val storageAccessManager: StorageAccessManager, private val cache: PageCache, private val tableOid: Oid): AutoCloseable {
-    private var currentPage: CachedPage? = null
+    private var currentPage_: CachedPage? = null
+    val currentPage: CachedPage? get() = currentPage_
 
     private fun newPage(): CachedPage {
         return cache.getAndPin(storageAccessManager.addPage(tableOid))
     }
 
     fun insert(record: ByteArray) {
-        var page = currentPage ?: newPage().also { currentPage = it }
+        var page = currentPage_ ?: newPage().also { currentPage_ = it }
         page.putRecord(record).let {result ->
             when {
                 result.isOutOfSpace -> {
                     page.close()
-                    page = newPage().also { currentPage = it }
+                    page = newPage().also { currentPage_ = it }
                     assert(page.putRecord(record).isOk)
                 }
                 result.isOk -> {}
@@ -43,6 +44,6 @@ class TableBuilder(private val storageAccessManager: StorageAccessManager, priva
     }
 
     override fun close() {
-        currentPage?.close()
+        currentPage_?.close()
     }
 }
