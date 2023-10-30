@@ -36,6 +36,7 @@ class AccessMethodException: Exception {
  * Full scan object can iterate over table pages and records.
  */
 interface FullScan {
+    fun startAt(pageId: PageId): FullScan
     /**
      * Creates an iterator over the table pages.
      */

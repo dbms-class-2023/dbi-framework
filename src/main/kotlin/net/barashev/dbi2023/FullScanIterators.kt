@@ -145,13 +145,35 @@ class FullScanImpl(
     private val pageCache: PageCache,
     private val tableOid: Oid,
     private val rootRecords: () -> Iterator<OidPageidRecord>) : FullScan {
+
+    private var startTablePageId: PageId? = null
+
+    override fun startAt(pageId: PageId): FullScan {
+        startTablePageId = pageId
+        return this
+    }
+
     override fun pages(): Iterable<CachedPage> {
-        return Iterable { PageIteratorImpl(pageCache, tableOid, rootRecords()) }
+        return Iterable {
+            PageIteratorImpl(pageCache, tableOid, rootRecords().let {
+                if (startTablePageId != null) {
+                    it.asSequence().dropWhile { rootRecord -> rootRecord.value2 != startTablePageId }.iterator()
+                } else {
+                    it
+                }
+            })
+        }
     }
 
     override fun <T> records(recordBytesParser: Function<ByteArray, T>): Iterable<T> {
         return Iterable {
-            FullScanIteratorImpl(pageCache, tableOid, rootRecords(), recordBytesParser)
+            FullScanIteratorImpl(pageCache, tableOid, rootRecords().let {
+                if (startTablePageId != null) {
+                    it.asSequence().dropWhile { rootRecord -> rootRecord.value2 != startTablePageId }.iterator()
+                } else {
+                    it
+                }
+            }, recordBytesParser)
         }
     }
 }
