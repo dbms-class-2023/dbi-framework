@@ -59,7 +59,7 @@ interface IndexManager {
     fun <T: Comparable<T>, S: AttributeType<T>> build(
         tableName: String,
         indexTableName: String,
-        method: IndexMethod = IndexMethod.BTREE,
+        method: IndexMethod,
         isUnique: Boolean,
         keyType: S,
         indexKey: Function<ByteArray, T>): Index<T>
@@ -77,7 +77,7 @@ interface IndexManager {
     fun <T: Comparable<T>, S: AttributeType<T>> open(
         tableName: String,
         indexTableName: String,
-        method: IndexMethod = IndexMethod.BTREE,
+        method: IndexMethod,
         isUnique: Boolean,
         keyType: S,
         indexKey: Function<ByteArray, T>): Index<T>

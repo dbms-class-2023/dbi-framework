@@ -35,6 +35,7 @@ fun initializeFactories(
     cacheImpl: String = System.getProperty("cache.impl", "fifo"),
     sortImpl: String = System.getProperty("sort.impl", "fake"),
     hashImpl: String = System.getProperty("hash.impl", "fake"),
+    indexImpl: String = System.getProperty("index.impl", "fake")
     ): Pair<PageCache, StorageAccessManager> {
     println("=".repeat(80))
     println("Cache policy: $cacheImpl")
@@ -64,7 +65,12 @@ fun initializeFactories(
             JoinAlgorithm.MERGE -> failure(NotImplementedError("Sort-Merge-Join not implemented yet"))
         }
     }
-    Indexes.indexFactory = { storageAccessManager, cache -> FakeIndexManager(storageAccessManager, cache) }
+    Indexes.indexFactory = { storageAccessManager, cache ->
+        when (indexImpl) {
+            "real" -> TODO("Create your index manager instance here")
+            else -> FakeIndexManager(storageAccessManager, cache)
+        }
+    }
 
     val cache = CacheManager.factory(storage, cacheSize)
     val simpleAccessManager = SimpleStorageAccessManager(cache)
