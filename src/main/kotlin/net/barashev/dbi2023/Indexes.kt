@@ -79,8 +79,8 @@ interface IndexManager {
         indexTableName: String,
         method: IndexMethod = IndexMethod.BTREE,
         isUnique: Boolean,
-        keyType: S, indexKey:
-        Function<ByteArray, T>): Index<T>
+        keyType: S,
+        indexKey: Function<ByteArray, T>): Index<T>
 }
 
 typealias IndexFactory = (StorageAccessManager, PageCache) -> IndexManager

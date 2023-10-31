@@ -18,8 +18,12 @@ package net.barashev.dbi2023.fake
 
 import net.barashev.dbi2023.*
 import java.util.function.Function
-import kotlin.random.Random
 
+/**
+ * This fake index keeps the entire mapping of the index keys to page ids in memory, however,
+ * it can persist the mapping to the disk and read it back from the disk.
+ * This index assumes that all index keys are unique,
+ */
 class FakeIndex<S: AttributeType<T>, T: Comparable<T>>(
   private val storageAccessManager: StorageAccessManager,
   private val pageCache: PageCache,
@@ -58,6 +62,14 @@ class FakeIndex<S: AttributeType<T>, T: Comparable<T>>(
     override fun lookup(indexKey: T) = key2page[indexKey]?.let { listOf(it)} ?: emptyList()
 }
 
+/**
+ * This fake index keeps the entire mapping of the index keys to page ids in memory, however,
+ * it can persist the mapping to the disk and read it back from the disk.
+ *
+ * This index assumes that there may be index key duplicates. If there are many values of some index keys, the data page
+ * references are stored in the overflow storage. However, if some key has no duplicates, the reference to the data page
+ * is stored directly in the index structure.
+ */
 class FakeMultiIndex<S: AttributeType<T>, T: Comparable<T>>(
     private val overflowTableName: String,
     private val storageAccessManager: StorageAccessManager,
@@ -69,77 +81,23 @@ class FakeMultiIndex<S: AttributeType<T>, T: Comparable<T>>(
 ): Index<T> {
     private val key2page = mutableMapOf<T, MutableList<PageId>>()
     fun buildIndex() {
-        class MultiIndexEntryBuilder(
-            val indexTableBuilder: TableBuilder,
-            val overflowTableBuilder: TableBuilder,
-            val indexKey: T,
-            page: PageId,
-            val overflowRunId: Int) {
-
-            val pages = mutableListOf<PageId>()
-            init {
-                addPage(page)
-            }
-
-            fun addPage(page: PageId) = pages.add(page)
-
-            fun insert() {
-                if (pages.size == 1) {
-                    indexTableBuilder.insert(Record3(keyType to indexKey, intField(pages[0]), intField(0)).asBytes())
-                } else {
-                    overflowTableBuilder.insert(Record2(intField(overflowRunId), intField(pages.size)).asBytes())
-                    val overflowPageId = overflowTableBuilder.currentPage!!.id
-                    indexTableBuilder.insert(Record3(keyType to indexKey, intField(-overflowPageId), intField(overflowRunId)).asBytes())
-                    pages.forEach {
-                        overflowTableBuilder.insert(Record2(intField(-1), intField(it)).asBytes())
-                    }
+        TableBuilder(storageAccessManager, pageCache, storageAccessManager.createTable(indexTableName)).use {indexTableBuilder ->
+            val indexBuilder = object : IndexBuilder<T> {
+                private val SINGLE_KEY_ENTRY = intField(0)
+                override fun insertSingleKey(indexKey: T, dataPage: PageId) {
+                    indexTableBuilder.insert(Record3(keyType to indexKey, intField(dataPage), SINGLE_KEY_ENTRY).asBytes())
                 }
+
+                override fun insertMultiKey(indexKey: T, overflowPage: PageId, overflowRunId: Int) {
+                    indexTableBuilder.insert(Record3(keyType to indexKey, intField(-overflowPage), intField(overflowRunId)).asBytes())
+                }
+            }
+            IndexOverflowBuilder(storageAccessManager, pageCache, tableName, overflowTableName, keyType, indexKey, indexBuilder).let {
+                it.build()
             }
         }
 
-        // Sort the indexed values and associate them with the original page ids
-        val auxTableName = "${indexTableName}.aux${Random.nextLong()}"
-        val auxTableParser = { bytes: ByteArray -> Record2(keyType to keyType.defaultValue(), intField()).fromBytes(bytes) }
-        val sortedByIndexKey = TableBuilder(storageAccessManager, pageCache, storageAccessManager.createTable(auxTableName)).use {auxBuilder ->
-            storageAccessManager.createFullScan(tableName).pages().forEach { page ->
-                page.allRecords().filter { it.value.isOk }.map { indexKey.apply(it.value.bytes) to page.id }.forEach {
-                    auxBuilder.insert(Record2(keyType to it.first, intField(page.id)).asBytes())
-                }
-            }
-            Operations.sortFactory(storageAccessManager, pageCache).sort(auxTableName) {
-                auxTableParser(it).value1
-            }
-        }
-
-        TableBuilder(storageAccessManager, pageCache, storageAccessManager.createTable(overflowTableName)).use {overflowTableBuilder ->
-            createIndexBuilder().use {indexTableBuilder ->
-                var overflowRunId = 1
-                var entryBuilder: MultiIndexEntryBuilder? = null
-
-                storageAccessManager.createFullScan(sortedByIndexKey).pages().forEach { page ->
-                    page.allRecords().forEach { _, result ->
-                        if (result.isOk) {
-                            val indexKey = auxTableParser(result.bytes).value1
-                            val dataPageId = auxTableParser(result.bytes).value2
-                            entryBuilder = entryBuilder?.let {
-                                if (it.indexKey == indexKey) {
-                                    it.addPage(dataPageId)
-                                    it
-                                } else {
-                                    it.insert()
-                                    MultiIndexEntryBuilder(indexTableBuilder, overflowTableBuilder, indexKey, dataPageId, overflowRunId++)
-                                }
-                            } ?: run {
-                                MultiIndexEntryBuilder(indexTableBuilder, overflowTableBuilder, indexKey, dataPageId, overflowRunId++)
-                            }
-                        }
-                    }
-                }
-                entryBuilder?.insert()
-            }
-        }
         openIndex()
-
     }
 
     fun openIndex() {
@@ -148,34 +106,12 @@ class FakeMultiIndex<S: AttributeType<T>, T: Comparable<T>>(
             if (indexRecord.value3 == 0) {
                 key2page.getOrPut(indexRecord.value1) { mutableListOf() }.add(indexRecord.value2)
             } else {
-                storageAccessManager.createFullScan(overflowTableName).startAt(-indexRecord.value2).pages().takeWhile { page ->
-                    page.allRecords().values.filter { it.isOk }.map {
-                        Record2(intField(), intField()).fromBytes(it.bytes)
-                    }.toList().let {overflowRecords ->
-                        if (overflowRecords[0].value1 == -1 && key2page[indexRecord.value1] != null) {
-                            val runRecords = overflowRecords.takeWhile { it.value1 == -1 }.toList()
-                            runRecords.forEach {
-                                key2page[indexRecord.value1]!!.add(it.value2)
-                            }
-                            runRecords.size == overflowRecords.size
-                        } else {
-                            var idxOverflow = overflowRecords.indexOfFirst { it.value1 == indexRecord.value3 }
-                            while (idxOverflow != -1 && idxOverflow < overflowRecords.size && (overflowRecords[idxOverflow].value1 == indexRecord.value3 || overflowRecords[idxOverflow].value1 == -1)) {
-                                if (overflowRecords[idxOverflow].value1 == -1) {
-                                    val list = key2page.getOrPut(indexRecord.value1) { mutableListOf() }
-                                    list.add(overflowRecords[idxOverflow].value2)
-                                }
-                                idxOverflow++;
-                            }
-                            idxOverflow == overflowRecords.size
-                        }
-                    }
+                IndexOverflowReader(storageAccessManager, overflowTableName).lookup(-indexRecord.value2, indexRecord.value3).let {
+                    key2page[indexRecord.value1] = it.toMutableList()
                 }
             }
         }
     }
-
-    internal fun createIndexBuilder() = TableBuilder(storageAccessManager, pageCache, storageAccessManager.createTable(indexTableName))
 
     override fun lookup(indexKey: T) = key2page[indexKey] ?: emptyList()
 }
@@ -215,6 +151,4 @@ class FakeIndexManager(private val storageAccessManager: StorageAccessManager, p
                 it.openIndex()
             }
         }
-
-
 }
