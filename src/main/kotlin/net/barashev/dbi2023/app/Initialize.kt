@@ -20,6 +20,7 @@ package net.barashev.dbi2023.app
 
 import net.barashev.dbi2023.*
 import net.barashev.dbi2023.fake.FakeHashTableBuilder
+import net.barashev.dbi2023.fake.FakeIndexManager
 import net.barashev.dbi2023.fake.FakeMergeSort
 import net.barashev.dbi2023.fake.FakeNestedLoops
 import kotlin.Result.Companion.failure
@@ -63,6 +64,7 @@ fun initializeFactories(
             JoinAlgorithm.MERGE -> failure(NotImplementedError("Sort-Merge-Join not implemented yet"))
         }
     }
+    Indexes.indexFactory = { storageAccessManager, cache -> FakeIndexManager(storageAccessManager, cache) }
 
     val cache = CacheManager.factory(storage, cacheSize)
     val simpleAccessManager = SimpleStorageAccessManager(cache)
