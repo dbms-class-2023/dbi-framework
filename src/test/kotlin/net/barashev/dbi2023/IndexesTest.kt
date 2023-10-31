@@ -22,7 +22,6 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
 
 class IndexesTest {
     val faker = Faker()
@@ -33,6 +32,7 @@ class IndexesTest {
 
     @Test
     fun `smoke test`() {
+        val indexMethod = IndexMethod.valueOf(System.getProperty("index.method", "BTREE"))
         val storage = createHardDriveEmulatorStorage()
         val cache = SimplePageCacheImpl(storage, 20)
         val accessMethodManager = SimpleStorageAccessManager(cache)
@@ -45,20 +45,20 @@ class IndexesTest {
         }
 
         val indexManager = Indexes.indexFactory(accessMethodManager, cache)
-        val index1 = indexManager.build("foo", "foo_id_idx", isUnique = true, keyType = IntAttribute()) {
+        val index1 = indexManager.build("foo", "foo_id_idx", method = indexMethod, isUnique = true, keyType = IntAttribute()) {
             Record2(intField(), stringField()).fromBytes(it).value1
         }
         assertFalse(index1.lookup(10).isEmpty())
-        val index1a = indexManager.open("foo", "foo_id_idx", isUnique = true, keyType = IntAttribute()) {
+        val index1a = indexManager.open("foo", "foo_id_idx", method = indexMethod, isUnique = true, keyType = IntAttribute()) {
             Record2(intField(), stringField()).fromBytes(it).value1
         }
         assertEquals(index1.lookup(10), index1a.lookup(10))
 
 
-        val index2 = indexManager.build("foo", "foo_name_idx", isUnique = true, keyType = StringAttribute()) {
+        val index2 = indexManager.build("foo", "foo_name_idx", method = indexMethod, isUnique = true, keyType = StringAttribute()) {
             Record2(intField(), stringField()).fromBytes(it).value2
         }
-        val index2a = indexManager.open("foo", "foo_name_idx", isUnique = true, keyType = StringAttribute()) {
+        val index2a = indexManager.open("foo", "foo_name_idx", method = indexMethod, isUnique = true, keyType = StringAttribute()) {
             Record2(intField(), stringField()).fromBytes(it).value2
         }
         assertFalse(index2.lookup(allNames[0]).isEmpty())
@@ -67,6 +67,7 @@ class IndexesTest {
 
     @Test
     fun `multi index test`() {
+        val indexMethod = IndexMethod.valueOf(System.getProperty("index.method", "BTREE"))
         val storage = createHardDriveEmulatorStorage()
         val cache = SimplePageCacheImpl(storage, 20)
         val accessMethodManager = SimpleStorageAccessManager(cache)
@@ -92,7 +93,7 @@ class IndexesTest {
         }
 
         val indexManager = Indexes.indexFactory(accessMethodManager, cache)
-        val index1 = indexManager.build("FizzBuzz", "fizzbuzz_value_idx", isUnique = false, keyType = StringAttribute()) {
+        val index1 = indexManager.build("FizzBuzz", "fizzbuzz_value_idx", method = indexMethod, isUnique = false, keyType = StringAttribute()) {
             Record2(intField(), stringField()).fromBytes(it).value2
         }
         assertEquals(fizzCount, index1.lookup("fizz").size)
