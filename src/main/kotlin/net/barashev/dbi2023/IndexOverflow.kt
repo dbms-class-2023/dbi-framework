@@ -142,13 +142,19 @@ class IndexOverflowReader(
                 ) {
                     if (overflowRecords[idxOverflow].value1 == -1) {
                         result.add(overflowRecords[idxOverflow].value2)
+                    } else {
+                        // We are at the overflow run start. Should it be the last records on the page, we would not add anything
+                        // to the result. So we add a fake page id = -1, and we'll remove it later.
+                        result.add(-1)
                     }
                     idxOverflow++;
                 }
+                // We continue if we reach the last record.
                 idxOverflow == overflowRecords.size
             }
         }
-        return result
+        // The first element of the result is fake -1.
+        return result.also { it.removeFirst() }
     }
 }
 

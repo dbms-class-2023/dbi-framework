@@ -102,4 +102,27 @@ class IndexesTest {
         assertTrue(index1.lookup("aas").isEmpty())
         assertEquals(1, index1.lookup("1").size)
     }
+
+    @Test
+    fun `overflow page, an overflow run start is the last record`() {
+        val storage = createHardDriveEmulatorStorage()
+        val cache = SimplePageCacheImpl(storage, 20)
+        val accessMethodManager = SimpleStorageAccessManager(cache)
+
+        val overflowTableOid = accessMethodManager.createTable("overflow_table")
+        val overflowPage1 = accessMethodManager.addPage(overflowTableOid).let(cache::getAndPin).use {
+            // The first overflow page contains a single head of overflow run #1
+            it.putRecord(Record2(intField(1), intField(3)).asBytes())
+            it.id
+        }
+        accessMethodManager.addPage(overflowTableOid).let(cache::getAndPin).use {
+            // The second page  contains three overflow run records.
+            it.putRecord(Record2(intField(-1), intField(1)).asBytes())
+            it.putRecord(Record2(intField(-1), intField(2)).asBytes())
+            it.putRecord(Record2(intField(-1), intField(3)).asBytes())
+        }
+
+        val overflowReader = IndexOverflowReader(accessMethodManager, "overflow_table")
+        assertEquals(listOf(1, 2, 3), overflowReader.lookup(overflowPage1, 1))
+    }
 }
