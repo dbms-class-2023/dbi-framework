@@ -49,6 +49,16 @@ interface FullScan {
 }
 
 /**
+ * Index scan object accesses all or some of the table records using index structures.
+ */
+interface IndexScan<T, K: Comparable<K>> {
+    /**
+     * Accesses those records which match the given key value of the indexed attribute.
+     */
+    fun byEquality(key: K, keyParser: Function<ByteArray, K>): Iterable<T>
+}
+
+/**
  * This interface provides an abstraction over basic physical operations with tables.
  * This is pretty low-level abstraction, e.g. it leaves the process of (de)serialization records from and to bytes
  * to the client. However, it hides the details of storing table metadata and implementations of table page iterators.
@@ -96,5 +106,28 @@ interface StorageAccessManager {
      * Deletes table with the given name.
      */
     fun deleteTable(tableName: String)
+
+    fun <T, K : Comparable<K>, S : AttributeType<K>> createIndexScan(
+        tableName: String,
+        attributeName: String,
+        attributeType: S,
+        keyParser: Function<ByteArray, K>,
+        recordBytesParser: Function<ByteArray, T>
+    ): IndexScan<T, K>?
+
+    fun <K : Comparable<K>, S : AttributeType<K>> createIndex(
+        tableName: String,
+        attributeName: String,
+        attributeType: S,
+        keyParser: Function<ByteArray, K>
+    )
+
+    /**
+     * Checks if there is an index for the specified attribute.
+     *
+     * @return true if index structure for the given attribute in the given table exists, false otherwise
+     */
+    fun indexExists(tableName: String, attributeName: String): Boolean
+
 }
 

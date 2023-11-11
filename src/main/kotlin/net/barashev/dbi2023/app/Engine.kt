@@ -48,21 +48,21 @@ class QueryExecutor(
         val joinStack = ArrayDeque(plan.joinTree)
         var result: JoinSpec? = null
         while (joinStack.isNotEmpty()) {
-            val joinPair = joinStack.removeFirst()
+            val joinNode = joinStack.removeFirst()
             val leftSpec = result?.let {
                 // If we already have a prefix sequence of joins, we replace a table name in the left operand of
                 // the next pair with a name of a temporary table which holds the intermediate output.
-                JoinSpec(it.tableName, joinPair.first.attribute).also {mergedSpec ->
-                    joinPair.first.filter?.let {
+                JoinSpec(it.tableName, joinNode.leftTable.attribute).also { mergedSpec ->
+                    joinNode.leftTable.filter?.let {
                         mergedSpec.filterBy(it)
                     }
                 }
 
-            } ?: joinPair.first
+            } ?: joinNode.leftTable
 
             //println("left=$leftSpec right=${joinPair.second}")
             val leftOperand = filter(leftSpec, temporaryTables).asJoinOperand()
-            val rightOperand = filter(joinPair.second, temporaryTables).asJoinOperand()
+            val rightOperand = filter(joinNode.rightTable, temporaryTables).asJoinOperand()
             //println("left filtered=$leftOperand right filtered=$rightOperand")
             val innerJoin = createJoinOperation(JoinAlgorithm.HASH).fold(
                 onSuccess = { Result.success(it) },
