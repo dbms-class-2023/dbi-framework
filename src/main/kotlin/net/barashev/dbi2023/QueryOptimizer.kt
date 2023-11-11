@@ -58,7 +58,7 @@ class QueryPlan(val joinTree: JoinTree, val filters: List<FilterSpec>)
 
 object Optimizer {
     var factory: (StorageAccessManager, PageCache) -> QueryOptimizer = { _, _ ->
-        VoidOptimizer()
+        TODO("Please DO NOT WRITE your code here. Set the factory instance where you need it: Optimizer.factory = ")
     }
 }
 
