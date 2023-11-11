@@ -35,7 +35,8 @@ fun initializeFactories(
     cacheImpl: String = System.getProperty("cache.impl", "fifo"),
     sortImpl: String = System.getProperty("sort.impl", "fake"),
     hashImpl: String = System.getProperty("hash.impl", "fake"),
-    indexImpl: String = System.getProperty("index.impl", "fake")
+    indexImpl: String = System.getProperty("index.impl", "fake"),
+    optimizerImpl: String = System.getProperty("optimizer.impl", "fake"),
     ): Pair<PageCache, StorageAccessManager> {
     println("=".repeat(80))
     println("Cache policy: $cacheImpl")
@@ -69,6 +70,12 @@ fun initializeFactories(
         when (indexImpl) {
             "real" -> TODO("Create your index manager instance here")
             else -> FakeIndexManager(storageAccessManager, cache)
+        }
+    }
+    Optimizer.factory = { storageAccessManager, pageCache ->
+        when (optimizerImpl) {
+            "real" -> TODO("Create your optimizer here")
+            else -> VoidOptimizer()
         }
     }
 

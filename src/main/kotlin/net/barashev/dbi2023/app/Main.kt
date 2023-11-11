@@ -23,10 +23,7 @@ import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.types.int
-import net.barashev.dbi2023.PageCache
-import net.barashev.dbi2023.Storage
-import net.barashev.dbi2023.StorageAccessManager
-import net.barashev.dbi2023.createHardDriveEmulatorStorage
+import net.barashev.dbi2023.*
 
 fun main(args: Array<String>) = Main().subcommands(SmokeTest(), CacheBenchmark(), SortBenchmark(), HashBenchmark(), JoinBenchmark()).main(args)
 
@@ -55,6 +52,11 @@ class SmokeTest: CliktCommand() {
         val populateCost = storage.totalAccessCost
         println("The cost to populate tables: ${populateCost}")
 
+        accessManager.buildIndexes(parseIndexClause(indexClause))
+
+        val costAfterIndexes = storage.totalAccessCost
+        println("Access cost after creation of tables and indexes: $costAfterIndexes")
+
         if (joinClause.isNotBlank() || filterClause.isNotBlank()) {
             executeQueryPlan(accessManager, cache, storage)
         } else {
@@ -66,7 +68,7 @@ class SmokeTest: CliktCommand() {
         val cost0 = storage.totalAccessCost
         val innerJoins = parseJoinClause(joinClause)
         val filters = parseFilterClause(filterClause)
-        val plan = QueryPlan(innerJoins, filters)
+        val plan = Optimizer.factory(accessManager, cache).buildPlan(QueryPlan(innerJoins, filters))
         println("We're executing the following query plan: $plan")
 
         var rowCount = 0
@@ -108,5 +110,12 @@ class SmokeTest: CliktCommand() {
     }
 }
 
-
+fun StorageAccessManager.buildIndexes(specs: List<IndexSpec>) {
+    specs.forEach { spec ->
+        val attributeType = attributeTypes["${spec.tableName}.${spec.attributeName}"] ?: throw IllegalStateException("Can't find attribute type for $spec")
+        val attributeValueParser = attributeValueParsers["${spec.tableName}.${spec.attributeName}"] ?: throw IllegalStateException("Can't find attribute value parser for $spec")
+        println("Creating index $spec")
+        createIndex(spec.tableName, spec.attributeName, attributeType, attributeValueParser)
+    }
+}
 
