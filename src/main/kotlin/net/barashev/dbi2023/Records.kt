@@ -342,4 +342,4 @@ fun <T> ByteBuffer.readAttribute(attrType: AttributeType<T>): T {
 private fun ByteBuffer.toBytes() = ByteArray(this.limit()).also {this.get(it)}
 
 typealias TableRecordParser = (ByteArray) -> Record3<Any, Any, Any>
-typealias AttributeValueParser = Function<ByteArray, Comparable<Any>>
+typealias AttributeValueParser<T> = Function<ByteArray, T>

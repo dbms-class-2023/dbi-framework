@@ -120,77 +120,82 @@ fun DataGenerator.insertTicket(flightNum: Int, fullName: String, ticketPrice: Do
 
 private fun DataGenerator.generateStatistics() {
     Statistics.managerFactory(storageAccessManager, cache).apply {
-        buildStatistics(
+        buildAttributeStatistics(
             "planet",
             "id",
             intField().first,
             10
         ) { planetRecord(it).component1() }
-        buildStatistics(
+        buildAttributeStatistics(
             "planet",
             "name",
             stringField().first,
             10
         ) { planetRecord(it).component2() }
-        buildStatistics(
+        buildAttributeStatistics(
             "planet",
             "distance",
             doubleField().first,
             10
         ) { planetRecord(it).component3() }
-        buildStatistics(
+        buildAttributeStatistics(
             "spacecraft",
             "id",
             intField().first,
             10
         ) { spacecraftRecord(it).component1() }
-        buildStatistics(
+        buildAttributeStatistics(
             "spacecraft",
             "name",
             stringField().first,
             10
         ) { spacecraftRecord(it).component2() }
-        buildStatistics(
+        buildAttributeStatistics(
             "spacecraft",
             "capacity",
             intField().first,
             10
         ) { spacecraftRecord(it).component3() }
-        buildStatistics(
+        buildAttributeStatistics(
             "flight",
             "num",
             intField().first,
             10
         ) { flightRecord(it).component1() }
-        buildStatistics(
+        buildAttributeStatistics(
             "flight",
             "planet_id",
             intField().first,
             10
         ) { flightRecord(it).component2() }
-        buildStatistics(
+        buildAttributeStatistics(
             "flight",
             "spacecraft_id",
             intField().first,
             10
         ) { flightRecord(it).component3() }
-        buildStatistics(
+        buildAttributeStatistics(
             "ticket",
             "flight_num",
             intField().first,
             10
         ) { ticketRecord(it).component1() }
-        buildStatistics(
+        buildAttributeStatistics(
             "ticket",
             "pax_name",
             stringField().first,
             10
         ) { ticketRecord(it).component2() }
-        buildStatistics(
+        buildAttributeStatistics(
             "ticket",
             "price",
             doubleField().first,
             10
         ) { ticketRecord(it).component3() }
+
+        buildTableStatistics("planet", ::planetRecord)
+        buildTableStatistics("spacecraft", ::spacecraftRecord)
+        buildTableStatistics("flight", ::flightRecord)
+        buildTableStatistics("ticket", ::ticketRecord)
     }
 }
