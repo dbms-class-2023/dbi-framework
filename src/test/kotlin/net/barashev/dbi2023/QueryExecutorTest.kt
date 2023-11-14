@@ -153,7 +153,7 @@ class QueryExecutorTest {
             JoinNode(
                 JoinSpec("planet", "id"),
                 JoinSpec("flight", "planet_id").also {
-                    it.filterBy(FilterSpec("flight", "num", 2 as Comparable<Any>, EQ, useIndex = true))
+                    it.filterBy(FilterSpec("flight", "num", 2 as Comparable<Any>, EQ, accessMethod = TableAccessMethod.INDEX_SCAN))
                 }
             ),
             JoinNode(
