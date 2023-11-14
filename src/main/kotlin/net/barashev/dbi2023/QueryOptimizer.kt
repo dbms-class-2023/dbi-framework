@@ -48,8 +48,6 @@ enum class TableAccessMethod {
 }
 data class JoinNode(
     val leftTable: JoinSpec, val rightTable: JoinSpec,
-    var leftAccessMethod: TableAccessMethod = TableAccessMethod.FULL_SCAN,
-    var rightAccessMethod: TableAccessMethod = TableAccessMethod.FULL_SCAN,
     var joinAlgorithm: JoinAlgorithm = JoinAlgorithm.NESTED_LOOPS
 )
 
