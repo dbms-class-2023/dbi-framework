@@ -32,9 +32,9 @@ class TransactionManagerTest {
     }
 
     @Test
-    fun `single transaction with fake scheduler`() {
+    fun `smoke test of two transactions with fake scheduler and wal`() {
         val scheduler = FakeScheduler()
-        val wal = walFactory(createHardDriveEmulatorStorage())
+        val wal = FakeWAL()
         val txnManager = TransactionManager(scheduler, LogManager(storage, 20, wal))
 
         val countDown = CountDownLatch(2)
