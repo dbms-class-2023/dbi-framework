@@ -140,6 +140,18 @@ internal class TableOidMapping(
     }
 }
 
+class IndexScanImpl<T, K: Comparable<K>>(private val pageCache: PageCache,
+                                         private val index: Index<K>,
+                                         private val recordBytesParser: Function<ByteArray, T>
+): IndexScan<T, K> {
+    override fun byEquality(key: K, keyParser: Function<ByteArray, K>): Iterable<T>  =
+        index.lookup(key).toSet().flatMap { pageId ->
+            pageCache.get(pageId).allRecords().values.filter {
+                it.isOk && key == keyParser.apply(it.bytes)
+            }.map { it.bytes }
+        }.map { recordBytesParser.apply(it) }.toList()
+}
+
 
 class SimpleStorageAccessManager(private val pageCache: PageCache): StorageAccessManager {
     private val tablePageDirectory = SimplePageDirectoryImpl(pageCache)
@@ -181,4 +193,71 @@ class SimpleStorageAccessManager(private val pageCache: PageCache): StorageAcces
             tableOidMapping.delete(tableName)
         }
     }
+
+    override fun <T, K: Comparable<K>, S: AttributeType<K>> createIndexScan(
+        tableName: String,
+        attributeName: String,
+        attributeType: S,
+        keyParser: Function<ByteArray, K>,
+        recordBytesParser: Function<ByteArray, T>
+    ): IndexScan<T, K>? =
+        when {
+            tableExists(tableName.indexTableName(attributeName, IndexMethod.BTREE)) ->
+                Indexes.indexFactory(this, pageCache).open(
+                    tableName,
+                    tableName.indexTableName(attributeName, IndexMethod.BTREE),
+                    IndexMethod.BTREE,
+                    false,
+                    attributeType,
+                    keyParser
+                )
+            tableExists(tableName.indexTableName(attributeName, IndexMethod.HASH)) ->
+                Indexes.indexFactory(this, pageCache).open(
+                    tableName,
+                    tableName.indexTableName(attributeName, IndexMethod.HASH),
+                    IndexMethod.HASH,
+                    false,
+                    attributeType,
+                    keyParser
+                )
+            else -> null
+        }?.let {index ->
+            IndexScanImpl(pageCache, index, recordBytesParser)
+        }
+
+    override fun <K: Comparable<K>, S: AttributeType<K>> createIndex(
+        tableName: String, attributeName: String, attributeType: S, keyParser: Function<ByteArray, K>) {
+        doCreateIndex(
+            tableName, IndexMethod.BTREE, attributeName, attributeType, keyParser
+        ).fold(
+            onSuccess = { Result.success(it) },
+            onFailure = {
+                doCreateIndex(tableName, IndexMethod.HASH, attributeName, attributeType, keyParser)
+            }
+        ).onFailure {ex ->
+            throw AccessMethodException("No index implementation found or index build failure", ex)
+        }
+    }
+
+    private fun <K: Comparable<K>, S: AttributeType<K>> doCreateIndex(
+        tableName: String, indexMethod: IndexMethod, attributeName: String, attributeType: S, keyParser: Function<ByteArray, K>): Result<Index<K>> {
+        if (!tableExists(tableName)) {
+            throw AccessMethodException("Relation $tableName not found")
+        }
+        val indexTable = tableName.indexTableName(attributeName, indexMethod)
+        if (tableExists(indexTable)) {
+            throw AccessMethodException("Index $indexTable already exists")
+        }
+        return try {
+            Result.success(Indexes.indexFactory(this, pageCache).build(tableName, indexTable, indexMethod, false, attributeType, keyParser))
+        } catch (ex: Exception) {
+            Result.failure(ex)
+        }
+    }
+
+    override fun indexExists(tableName: String, attributeName: String): Boolean =
+        tableExists(tableName.indexTableName(attributeName, IndexMethod.BTREE)) || tableExists(tableName.indexTableName(attributeName, IndexMethod.HASH))
+
+    private fun String.indexTableName(attributeName: String, method: IndexMethod) = "${this}_idx_${attributeName}_${method.name.lowercase()}"
+
 }

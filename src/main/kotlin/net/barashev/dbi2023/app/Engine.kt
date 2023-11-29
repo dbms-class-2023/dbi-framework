@@ -48,21 +48,21 @@ class QueryExecutor(
         val joinStack = ArrayDeque(plan.joinTree)
         var result: JoinSpec? = null
         while (joinStack.isNotEmpty()) {
-            val joinPair = joinStack.removeFirst()
+            val joinNode = joinStack.removeFirst()
             val leftSpec = result?.let {
                 // If we already have a prefix sequence of joins, we replace a table name in the left operand of
                 // the next pair with a name of a temporary table which holds the intermediate output.
-                JoinSpec(it.tableName, joinPair.first.attribute).also {mergedSpec ->
-                    joinPair.first.filter?.let {
+                JoinSpec(it.tableName, joinNode.leftTable.attribute).also { mergedSpec ->
+                    joinNode.leftTable.filter?.let {
                         mergedSpec.filterBy(it)
                     }
                 }
 
-            } ?: joinPair.first
+            } ?: joinNode.leftTable
 
             //println("left=$leftSpec right=${joinPair.second}")
             val leftOperand = filter(leftSpec, temporaryTables).asJoinOperand()
-            val rightOperand = filter(joinPair.second, temporaryTables).asJoinOperand()
+            val rightOperand = filter(joinNode.rightTable, temporaryTables).asJoinOperand()
             //println("left filtered=$leftOperand right filtered=$rightOperand")
             val innerJoin = createJoinOperation(JoinAlgorithm.HASH).fold(
                 onSuccess = { Result.success(it) },
@@ -117,7 +117,7 @@ class QueryExecutor(
 
     private fun filter(joinSpec: JoinSpec, temporaryTables: MutableList<String>): JoinSpec {
         val filter = joinSpec.filter ?: return joinSpec
-       // println("filter: input=$joinSpec")
+        // println("filter: input=$joinSpec")
         val valueParser = buildJoinAttrFxn(JoinSpec(joinSpec.tableName, filter.attribute))
         val outputTableName = "@${filter.attributeName},${joinSpec.tableName}".also {
             temporaryTables.add(it)
@@ -125,10 +125,26 @@ class QueryExecutor(
         val outputTable = storageAccessManager.createTable(outputTableName)
         TableBuilder(storageAccessManager, pageCache, outputTable).use { builder ->
             val filteredRecords: Iterable<ByteArray> =
-                storageAccessManager.createFullScan(joinSpec.tableName).records {
-                    if (filter.op.test(valueParser.apply(it), filter.attributeValue)) {
-                        it
-                    } else ByteArray(0)
+                when (filter.accessMethod) {
+                    TableAccessMethod.INDEX_SCAN -> {
+                        val attributeType = attributeTypes[filter.attribute]
+                            ?: throw QueryExecutorException("Unknown type of attribute ${filter.attribute}")
+                        val attributeValueParser = attributeValueParsers[filter.attribute]
+                            ?: throw QueryExecutorException("Can't find parser for index key ${filter.attribute}")
+                        storageAccessManager.createIndexScan(joinSpec.tableName, filter.attributeName, attributeType, attributeValueParser) {
+                            if (filter.op.test(valueParser.apply(it), filter.attributeValue)) {
+                                it
+                            } else ByteArray(0)
+                        }?.byEquality(filter.attributeValue, attributeValueParser)
+                            ?: throw QueryExecutorException("Can't create index scan for ${filter.attribute}")
+                    }
+                    TableAccessMethod.FULL_SCAN -> {
+                        storageAccessManager.createFullScan(joinSpec.tableName).records {
+                            if (filter.op.test(valueParser.apply(it), filter.attributeValue)) {
+                                it
+                            } else ByteArray(0)
+                        }
+                    }
                 }
             filteredRecords.forEach {
                 if (it.isNotEmpty()) {
@@ -139,6 +155,7 @@ class QueryExecutor(
 
         return JoinSpec(outputTableName, joinSpec.attributeName)
     }
+
     private fun createJoinOperation(method: JoinAlgorithm): Result<InnerJoin> =
         try {
             Operations.innerJoinFactory(storageAccessManager, pageCache, method)

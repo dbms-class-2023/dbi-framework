@@ -17,11 +17,14 @@
  */
 package net.barashev.dbi2023.app
 
+import net.barashev.dbi2023.JoinNode
+import net.barashev.dbi2023.TableAccessMethod
 import java.util.function.BiPredicate
 
 data class FilterSpec(
     val tableName: String, val attributeName: String, val attributeValue: Comparable<Any>,
-    val op: BiPredicate<Comparable<Any>, Comparable<Any>>, val useIndex: Boolean = false) {
+    val op: BiPredicate<Comparable<Any>, Comparable<Any>>,
+    val accessMethod: TableAccessMethod = TableAccessMethod.FULL_SCAN) {
     val attribute get() =
         if (attributeName.indexOf('.') >= 0) {
             attributeName
@@ -69,14 +72,8 @@ class JoinSpec(val tableName: String, val attributeName: String) {
     val realTables: List<String> = tableName.split(",").filter { !it.startsWith("@") }
 }
 
-typealias JoinTree = List<Pair<JoinSpec, JoinSpec>>
-class QueryPlan(val joinTree: JoinTree, val filters: List<FilterSpec>) {
-    init {
 
-    }
-}
-
-fun parseJoinClause(joinClause: String): List<Pair<JoinSpec, JoinSpec>> =
+fun parseJoinClause(joinClause: String): List<JoinNode> =
     if (joinClause.isBlank()) emptyList()
     else
         joinClause.split("""\s+""".toRegex()).map { pair ->
@@ -85,7 +82,7 @@ fun parseJoinClause(joinClause: String): List<Pair<JoinSpec, JoinSpec>> =
                 val (table, attribute) = stringSpec.split(".", limit = 2)
                 JoinSpec(table, attribute)
             }
-            parseSpec(left) to parseSpec(right)
+            JoinNode(parseSpec(left), parseSpec(right))
         }.toList()
 
 val EQ: BiPredicate<Comparable<Any>, Comparable<Any>> = BiPredicate { left, right -> left == right }
