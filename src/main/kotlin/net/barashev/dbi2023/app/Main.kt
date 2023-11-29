@@ -37,6 +37,7 @@ class SmokeTest: CliktCommand() {
     val sortImpl: String by option(help="Merge sort implementation [default=fake]").default(System.getProperty("sort.impl", "fake"))
     val hashImpl: String by option(help="Hash table implementation [default=fake]").default(System.getProperty("hash.impl", "fake"))
     val indexImpl: String by option(help="Indexes implementation [default=fake]").default(System.getProperty("index.impl", "fake"))
+    val walImpl: String by option(help="WAL implementation [default=fake]").default(System.getProperty("wal.impl", "fake"))
     val optimizerImpl: String by option(help="Optimizer implementation [default=fake]").default(System.getProperty("optimizer.impl", "fake"))
 
     val dataScale: Int by option(help="Test data scale [default=1]").int().default(1)
@@ -48,9 +49,7 @@ class SmokeTest: CliktCommand() {
 
     override fun run() {
         val storage = createHardDriveEmulatorStorage()
-        val (cache, accessManager) = initializeFactories(
-            storage, cacheSize, cacheImpl, sortImpl, hashImpl, indexImpl, optimizerImpl
-        )
+        val (cache, accessManager) = initializeFactories(storage, cacheSize, cacheImpl, sortImpl, indexImpl, optimizerImpl, walImpl)
         DataGenerator(accessManager, cache, dataScale, !randomDataSize, disableStatistics).use {}
 
         val populateCost = storage.totalAccessCost

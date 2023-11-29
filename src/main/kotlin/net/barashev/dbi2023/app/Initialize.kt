@@ -37,7 +37,8 @@ fun initializeFactories(
     hashImpl: String = System.getProperty("hash.impl", "fake"),
     indexImpl: String = System.getProperty("index.impl", "fake"),
     optimizerImpl: String = System.getProperty("optimizer.impl", "fake"),
-    ): Pair<PageCache, StorageAccessManager> {
+    walImpl: String = System.getProperty("wal.impl", "fake"),
+): Pair<PageCache, StorageAccessManager> {
     println("=".repeat(80))
     println("Cache policy: $cacheImpl")
     println("Cache size: $cacheSize")
@@ -72,6 +73,19 @@ fun initializeFactories(
             else -> FakeIndexManager(storageAccessManager, cache)
         }
     }
+    walFactory = {
+        when (walImpl) {
+            "real" -> TODO("Create your WAL factory instance here")
+            else -> FakeWAL()
+        }
+    }
+    recoveryFactory = {
+        when (walImpl) {
+            "real" -> TODO("Create your recovery factory instance here")
+            else -> NoRecovery()
+        }
+    }
+
     Optimizer.factory = { storageAccessManager, pageCache ->
         when (optimizerImpl) {
             "real" -> TODO("Create your optimizer here")
