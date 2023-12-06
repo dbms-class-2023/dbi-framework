@@ -72,7 +72,7 @@ class SmokeTest: CliktCommand() {
         val innerJoins = parseJoinClause(joinClause)
         val filters = parseFilterClause(filterClause)
         val plan = Optimizer.factory(accessManager, cache).buildPlan(QueryPlan(innerJoins, filters))
-        println("We're executing the following query plan: $plan")
+        println("We're executing the following query plan:\n$plan")
 
         var rowCount = 0
         val joinResult = QueryExecutor(accessManager, cache, tableRecordParsers, attributeValueParsers).run {

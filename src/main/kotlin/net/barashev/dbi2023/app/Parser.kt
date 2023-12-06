@@ -31,7 +31,7 @@ data class FilterSpec(
         } else "$tableName.$attributeName"
 
     override fun toString(): String {
-        return "$attribute ${op.asText()} $attributeValue"
+        return "$accessMethod[$attribute ${op.asText()} $attributeValue]"
     }
 }
 

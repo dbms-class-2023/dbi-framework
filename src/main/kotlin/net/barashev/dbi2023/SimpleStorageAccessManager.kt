@@ -39,23 +39,34 @@ internal interface TablePageDirectory {
  * directory records that fit into a single directory page. Also, the total number of pages is restricted by a constant
  * which indicates how many pages are allocated for the directory.
  */
-class SimplePageDirectoryImpl(private val pageCache: PageCache): TablePageDirectory {
+class SimplePageDirectoryImpl(private val pageCache: PageCache, private val rootPagesPerTable: Int = 1): TablePageDirectory {
     private var maxPageId: PageId = MAX_ROOT_PAGE_COUNT + 1
-    override fun pages(tableOid: Oid): Iterable<OidPageidRecord> = RootRecords(pageCache, tableOid, 1)
+    override fun pages(tableOid: Oid): Iterable<OidPageidRecord> = RootRecords(pageCache, tableOid*rootPagesPerTable, rootPagesPerTable)
 
     override fun add(tableOid: Oid, pageCount: Int): PageId {
         val nextPageId = maxPageId
         maxPageId += pageCount
-        return pageCache.getAndPin(tableOid).use { cachedPage ->
-            (nextPageId until maxPageId).forEach {
-                cachedPage.putRecord(OidPageidRecord(intField(tableOid), intField(it)).asBytes()).let {result ->
-                    if (result.isOutOfSpace) {
-                        throw AccessMethodException("Directory page overflow for relation $tableOid. The directory page already contains ${cachedPage.allRecords().size} records")
+        (nextPageId until maxPageId).forEach {
+            addTablePageRecord(tableOid, it)
+        }
+        return nextPageId
+    }
+
+    private fun addTablePageRecord(tableOid: Oid, pageId: PageId) {
+        var recordCount = 0
+        (tableOid * rootPagesPerTable until (tableOid + 1)*rootPagesPerTable).forEach { rootPageId ->
+            pageCache.getAndPin(rootPageId).use {cachedPage ->
+                cachedPage.putRecord(OidPageidRecord(intField(tableOid), intField(pageId)).asBytes()).let {result ->
+                    if (result.isOk) {
+                        return
+                    }
+                    else {
+                        recordCount += cachedPage.allRecords().size
                     }
                 }
             }
-            nextPageId
         }
+        throw AccessMethodException("Directory overflow for relation $tableOid. There are already ${recordCount} pages")
     }
 
     override fun delete(tableOid: Oid) {
@@ -152,15 +163,15 @@ class IndexScanImpl<T, K: Comparable<K>>(private val pageCache: PageCache,
         }.map { recordBytesParser.apply(it) }.toList()
 }
 
-
+private const val ROOT_PAGES_PER_TABLE = 4
 class SimpleStorageAccessManager(private val pageCache: PageCache): StorageAccessManager {
-    private val tablePageDirectory = SimplePageDirectoryImpl(pageCache)
+    private val tablePageDirectory = SimplePageDirectoryImpl(pageCache, ROOT_PAGES_PER_TABLE)
     private val tableOidMapping = TableOidMapping(pageCache, tablePageDirectory)
 
     override fun createFullScan(tableName: String): FullScan =
         tableOidMapping.get(tableName)
             ?.let { tableOid ->
-                FullScanImpl(pageCache, tableOid) { RootRecordIteratorImpl(pageCache, tableOid, 1) }
+                FullScanImpl(pageCache, tableOid) { RootRecordIteratorImpl(pageCache, tableOid*ROOT_PAGES_PER_TABLE, ROOT_PAGES_PER_TABLE) }
             }
             ?: throw AccessMethodException("Relation $tableName not found")
 

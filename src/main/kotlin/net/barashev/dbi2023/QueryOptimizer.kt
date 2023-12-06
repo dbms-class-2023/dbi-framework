@@ -49,10 +49,27 @@ enum class TableAccessMethod {
 data class JoinNode(
     val leftTable: JoinSpec, val rightTable: JoinSpec,
     var joinAlgorithm: JoinAlgorithm = JoinAlgorithm.NESTED_LOOPS
-)
+) {}
 
 typealias JoinTree = List<JoinNode>
-class QueryPlan(val joinTree: JoinTree, val filters: List<FilterSpec>)
+fun JoinTree.print() =
+    this.mapIndexed { index, joinNode ->
+        if (index == 0) {
+            """${joinNode.leftTable.tableName}${joinNode.leftTable.filter?.let{"($it)"}?:""} ${joinNode.joinAlgorithm} JOIN ${joinNode.rightTable.tableName}${joinNode.rightTable.filter?.let{"($it)"}?:""} ON ${joinNode.leftTable.attributeName} = ${joinNode.rightTable.attributeName}"""
+        } else {
+            """${" ".repeat(index*4)}${joinNode.joinAlgorithm} JOIN ${joinNode.rightTable.tableName}${joinNode.rightTable.filter?.let{"($it)"}?:""}  ON ${joinNode.leftTable.attributeName} = ${joinNode.rightTable.attributeName} ${joinNode.leftTable.filter?.let{"(WHERE $it)"}?:""}"""
+        }
+    }.joinToString("\n")
+
+class QueryPlan(val joinTree: JoinTree, val filters: List<FilterSpec>) {
+    override fun toString(): String {
+        return """${"-".repeat(80)}
+            |${joinTree.print()}
+            |WHERE ($filters)
+            |${"-".repeat(80)}
+        """.trimMargin()
+    }
+}
 
 object Optimizer {
     var factory: (StorageAccessManager, PageCache) -> QueryOptimizer = { _, _ ->
