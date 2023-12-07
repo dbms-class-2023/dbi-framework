@@ -22,7 +22,6 @@ import net.barashev.dbi2023.*
 import net.barashev.dbi2023.fake.FakeHashTableBuilder
 import net.barashev.dbi2023.fake.FakeIndexManager
 import net.barashev.dbi2023.fake.FakeMergeSort
-import net.barashev.dbi2023.fake.FakeNestedLoops
 import kotlin.Result.Companion.failure
 import kotlin.Result.Companion.success
 
@@ -45,6 +44,7 @@ fun initializeFactories(
     CacheManager.factory = { strg, size ->
         when (cacheImpl) {
             "none" -> NonePageCacheImpl(strg)
+            "aging" -> AgingPageCacheImpl(strg, size)
             else -> FifoPageCacheImpl(strg, size)
         }
     }
@@ -56,20 +56,21 @@ fun initializeFactories(
     }
     Operations.hashFactory = { storageAccessManager, pageCache ->
         when (hashImpl) {
-            "real" -> TODO("Create your hash builder instance here")
+            "real" -> HashTableBuilderImpl(storageAccessManager, pageCache)
             else -> FakeHashTableBuilder(storageAccessManager, pageCache)
         }
     }
     Operations.innerJoinFactory = { accessMethodManager, pageCache, joinAlgorithm ->
         when (joinAlgorithm) {
-            JoinAlgorithm.NESTED_LOOPS -> success(FakeNestedLoops(accessMethodManager))
-            JoinAlgorithm.HASH -> failure(NotImplementedError("Hash-Join not implemented yet"))
+            JoinAlgorithm.NESTED_LOOPS -> success(BlockNestedJoin(accessMethodManager, pageCache))
+            JoinAlgorithm.HASH -> success(HashJoinImpl(accessMethodManager, pageCache))
             JoinAlgorithm.MERGE -> failure(NotImplementedError("Sort-Merge-Join not implemented yet"))
         }
     }
+    var indexManagerInstance: IndexManager? = null
     Indexes.indexFactory = { storageAccessManager, cache ->
         when (indexImpl) {
-            "real" -> TODO("Create your index manager instance here")
+            "real" -> indexManagerInstance ?: BTreeIndexManager(storageAccessManager, cache).also {indexManagerInstance = it}
             else -> FakeIndexManager(storageAccessManager, cache)
         }
     }
@@ -86,9 +87,18 @@ fun initializeFactories(
         }
     }
 
+    if (hashImpl == "real") {
+        Optimizer.defaultJoinAlgorithm = JoinAlgorithm.HASH
+    }
     Optimizer.factory = { storageAccessManager, pageCache ->
         when (optimizerImpl) {
-            "real" -> TODO("Create your optimizer here")
+            "real" -> //GreedyQueryOptimizer(storageAccessManager, pageCache)
+                ChainedOptimizer(
+                PredicateOptimization(storageAccessManager, pageCache),
+                //VoidOptimizer())
+                GreedyJoinOrderOptimizer(Statistics.managerFactory(storageAccessManager, pageCache)))
+            "real2" -> PredicateOptimization(storageAccessManager, pageCache)
+            "real3" -> GreedyQueryOptimizer(storageAccessManager, pageCache)
             else -> VoidOptimizer()
         }
     }
