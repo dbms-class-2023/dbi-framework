@@ -64,15 +64,36 @@ class QueryExecutor(
             val leftOperand = filter(leftSpec, temporaryTables).asJoinOperand()
             val rightOperand = filter(joinNode.rightTable, temporaryTables).asJoinOperand()
             //println("left filtered=$leftOperand right filtered=$rightOperand")
-            val innerJoin = createJoinOperation(JoinAlgorithm.HASH).fold(
-                onSuccess = { Result.success(it) },
-                onFailure = { createJoinOperation(JoinAlgorithm.NESTED_LOOPS) }
-            ).fold(
-                onSuccess = { Result.success(it) },
-                onFailure = {createJoinOperation(JoinAlgorithm.MERGE) }
-            ).onFailure {
-                throw QueryExecutorException("Can't find working join algorithm", it)
+            val innerJoin = when (joinNode.joinAlgorithm) {
+                JoinAlgorithm.HASH -> createJoinOperation(JoinAlgorithm.HASH).fold(
+                    onSuccess = { Result.success(it) },
+                    onFailure = { createJoinOperation(JoinAlgorithm.NESTED_LOOPS) }
+                ).fold(
+                    onSuccess = { Result.success(it) },
+                    onFailure = {createJoinOperation(JoinAlgorithm.MERGE) }
+                ).onFailure {
+                    throw QueryExecutorException("Can't find working join algorithm", it)
+                }
+                JoinAlgorithm.NESTED_LOOPS ->  createJoinOperation(JoinAlgorithm.NESTED_LOOPS).fold(
+                    onSuccess = { Result.success(it) },
+                    onFailure = { createJoinOperation(JoinAlgorithm.HASH) }
+                ).fold(
+                    onSuccess = { Result.success(it) },
+                    onFailure = {createJoinOperation(JoinAlgorithm.MERGE) }
+                ).onFailure {
+                    throw QueryExecutorException("Can't find working join algorithm", it)
+                }
+                JoinAlgorithm.MERGE ->                 createJoinOperation(JoinAlgorithm.MERGE).fold(
+                    onSuccess = { Result.success(it) },
+                    onFailure = { createJoinOperation(JoinAlgorithm.NESTED_LOOPS) }
+                ).fold(
+                    onSuccess = { Result.success(it) },
+                    onFailure = {createJoinOperation(JoinAlgorithm.HASH) }
+                ).onFailure {
+                    throw QueryExecutorException("Can't find working join algorithm", it)
+                }
             }
+
             val joinOutput = innerJoin.getOrThrow().join(leftOperand, rightOperand)
 
             val outputTableName = "${leftOperand.tableName},${rightOperand.tableName}".also {
@@ -136,7 +157,12 @@ class QueryExecutor(
                                 it
                             } else ByteArray(0)
                         }?.byEquality(filter.attributeValue, attributeValueParser)
-                            ?: throw QueryExecutorException("Can't create index scan for ${filter.attribute}")
+                            ?: storageAccessManager.createFullScan(joinSpec.tableName).records {
+                                if (filter.op.test(valueParser.apply(it), filter.attributeValue)) {
+                                    it
+                                } else ByteArray(0)
+                            }
+
                     }
                     TableAccessMethod.FULL_SCAN -> {
                         storageAccessManager.createFullScan(joinSpec.tableName).records {

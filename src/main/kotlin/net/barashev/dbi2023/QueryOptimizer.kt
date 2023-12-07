@@ -48,7 +48,7 @@ enum class TableAccessMethod {
 }
 data class JoinNode(
     val leftTable: JoinSpec, val rightTable: JoinSpec,
-    var joinAlgorithm: JoinAlgorithm = JoinAlgorithm.NESTED_LOOPS
+    var joinAlgorithm: JoinAlgorithm = Optimizer.defaultJoinAlgorithm
 ) {}
 
 typealias JoinTree = List<JoinNode>
@@ -72,6 +72,7 @@ class QueryPlan(val joinTree: JoinTree, val filters: List<FilterSpec>) {
 }
 
 object Optimizer {
+    var defaultJoinAlgorithm = JoinAlgorithm.NESTED_LOOPS
     var factory: (StorageAccessManager, PageCache) -> QueryOptimizer = { _, _ ->
         TODO("Please DO NOT WRITE your code here. Set the factory instance where you need it: Optimizer.factory = ")
     }
@@ -79,4 +80,12 @@ object Optimizer {
 
 class VoidOptimizer : QueryOptimizer {
     override fun buildPlan(initialPlan: QueryPlan): QueryPlan = initialPlan
+}
+
+
+class ChainedOptimizer(private val first: QueryOptimizer, private val second: QueryOptimizer): QueryOptimizer {
+    override fun buildPlan(initialPlan: QueryPlan): QueryPlan {
+        return second.buildPlan(first.buildPlan(initialPlan))
+    }
+
 }

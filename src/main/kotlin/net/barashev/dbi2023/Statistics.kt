@@ -59,11 +59,14 @@ interface StatisticsManager {
 }
 
 object Statistics {
+    var managerInstance: StatisticsManager? = null
     /**
      * Factory method for creating StatisticsManager instances.
      * Please set your own factory instance from your own code.
      */
-    var managerFactory: (StorageAccessManager, PageCache) -> StatisticsManager = { storageAccess, _ -> SimpleStatisticsManager(storageAccess) }
+    var managerFactory: (StorageAccessManager, PageCache) -> StatisticsManager = { storageAccess, _ ->
+        managerInstance ?: SimpleStatisticsManager(storageAccess).also { managerInstance = it}
+    }
 }
 
 

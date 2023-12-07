@@ -49,7 +49,7 @@ class SmokeTest: CliktCommand() {
 
     override fun run() {
         val storage = createHardDriveEmulatorStorage()
-        val (cache, accessManager) = initializeFactories(storage, cacheSize, cacheImpl, sortImpl, indexImpl, optimizerImpl, walImpl)
+        val (cache, accessManager) = initializeFactories(storage, cacheSize, cacheImpl, sortImpl, hashImpl ,indexImpl, optimizerImpl, walImpl)
         DataGenerator(accessManager, cache, dataScale, !randomDataSize, disableStatistics).use {}
 
         val populateCost = storage.totalAccessCost
@@ -89,6 +89,7 @@ class SmokeTest: CliktCommand() {
             println("----")
         }
         println("Execution cost: ${storage.totalAccessCost - cost0}")
+        println("Cache stats: ${cache.stats}")
     }
 
     fun printTableContents(accessManager: StorageAccessManager, storage: Storage) {

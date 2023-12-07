@@ -34,9 +34,7 @@ internal data class StatsImpl(var cacheHitCount: Int = 0, var cacheMissCount: In
     val addTracker = mutableMapOf<PageId, Int>()
     override fun toString(): String {
         return """Cache stats:
-            hit ratio=${round(100.0*cacheHitCount/(cacheHitCount+cacheMissCount))} hits=$cacheHitCount misses=$cacheMissCount
-            pages loaded >10 times:
-            ${addTracker.filterValues { it > 10 }})"""
+            hit ratio=${round(100.0*cacheHitCount/(cacheHitCount+cacheMissCount))} hits=$cacheHitCount misses=$cacheMissCount"""
     }
 }
 

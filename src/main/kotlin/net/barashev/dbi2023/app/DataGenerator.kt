@@ -62,6 +62,7 @@ class DataGenerator(
             println("--------------------")
             println("Collecting statistics")
             generateStatistics()
+            println(Statistics.managerFactory(storageAccessManager, cache).getTableStatistics("flight"))
             println("Done!")
             println("--------------------")
         }

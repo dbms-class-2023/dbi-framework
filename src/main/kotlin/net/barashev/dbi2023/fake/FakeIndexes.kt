@@ -53,6 +53,11 @@ class FakeIndex<S: AttributeType<T>, T: Comparable<T>>(
     internal fun createIndexBuilder() = TableBuilder(storageAccessManager, pageCache, storageAccessManager.createTable(indexTableName))
 
     internal fun openIndex() {
+        println("""
+            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            !! ATTENTION: WE ARE USING FAKE INDEX
+            --------------------------------------------------
+        """.trimIndent())
         val parser = { bytes: ByteArray -> Record2(keyType to keyType.defaultValue(), intField()).fromBytes(bytes)}
         storageAccessManager.createFullScan(indexTableName).records(parser).forEach {
           key2page[it.value1] = it.value2
@@ -101,6 +106,11 @@ class FakeMultiIndex<S: AttributeType<T>, T: Comparable<T>>(
     }
 
     fun openIndex() {
+        println("""
+            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            !! ATTENTION: WE ARE USING FAKE MULTI INDEX
+            --------------------------------------------------
+        """.trimIndent())
         val parser = { bytes: ByteArray -> Record3(keyType to keyType.defaultValue(), intField(), intField()).fromBytes(bytes)}
         storageAccessManager.createFullScan(indexTableName).records(parser).forEach {indexRecord ->
             if (indexRecord.value3 == 0) {

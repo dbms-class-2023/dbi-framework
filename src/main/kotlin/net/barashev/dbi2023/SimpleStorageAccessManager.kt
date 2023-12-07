@@ -70,8 +70,10 @@ class SimplePageDirectoryImpl(private val pageCache: PageCache, private val root
     }
 
     override fun delete(tableOid: Oid) {
-        pageCache.getAndPin(tableOid).use {
-            it.clear()
+        (tableOid * rootPagesPerTable until (tableOid + 1)*rootPagesPerTable).forEach { rootPageId ->
+            pageCache.getAndPin(rootPageId).use {
+                it.clear()
+            }
         }
     }
 }
@@ -173,7 +175,7 @@ class SimpleStorageAccessManager(private val pageCache: PageCache): StorageAcces
             ?.let { tableOid ->
                 FullScanImpl(pageCache, tableOid) { RootRecordIteratorImpl(pageCache, tableOid*ROOT_PAGES_PER_TABLE, ROOT_PAGES_PER_TABLE) }
             }
-            ?: throw AccessMethodException("Relation $tableName not found")
+            ?: throw AccessMethodException("Relation $tableName not found. What do we have: $tableOidMapping")
 
     override fun createTable(tableName: String): Oid {
         if (tableOidMapping.get(tableName) != null) {
@@ -213,7 +215,7 @@ class SimpleStorageAccessManager(private val pageCache: PageCache): StorageAcces
         recordBytesParser: Function<ByteArray, T>
     ): IndexScan<T, K>? =
         when {
-            tableExists(tableName.indexTableName(attributeName, IndexMethod.BTREE)) ->
+            tableExists(tableName.indexTableName(attributeName, IndexMethod.BTREE).also { println("index table=$it ?") }) ->
                 Indexes.indexFactory(this, pageCache).open(
                     tableName,
                     tableName.indexTableName(attributeName, IndexMethod.BTREE),
@@ -222,7 +224,7 @@ class SimpleStorageAccessManager(private val pageCache: PageCache): StorageAcces
                     attributeType,
                     keyParser
                 )
-            tableExists(tableName.indexTableName(attributeName, IndexMethod.HASH)) ->
+            tableExists(tableName.indexTableName(attributeName, IndexMethod.HASH).also { println("index table=$it ?") }) ->
                 Indexes.indexFactory(this, pageCache).open(
                     tableName,
                     tableName.indexTableName(attributeName, IndexMethod.HASH),
