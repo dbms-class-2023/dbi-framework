@@ -18,6 +18,7 @@
 
 package net.barashev.dbi2023
 
+import org.slf4j.LoggerFactory
 import kotlin.math.round
 
 internal data class StatsImpl(var cacheHitCount: Int = 0, var cacheMissCount: Int = 0): PageCacheStats {
@@ -139,6 +140,7 @@ open class SimplePageCacheImpl(internal val storage: Storage, private val maxCac
     // Override this to implement your own swap policy.
     internal open fun doSwap(victim: CachedPageImpl, newPage: CachedPageImpl) {
         val idx = cacheArray.indexOf(victim)
+        LOG.debug("swap: #${victim.id} => #${newPage.id} / @index=$idx")
         cacheArray[idx] = newPage
     }
 
@@ -199,7 +201,106 @@ class NonePageCacheImpl(private val storage: Storage): PageCache {
 
 class FifoPageCacheImpl(storage: Storage, maxCacheSize: Int): SimplePageCacheImpl(storage, maxCacheSize) {
     override fun doSwap(victim: CachedPageImpl, newPage: CachedPageImpl) {
+        LOG.debug("swap: #${victim.id} => #${newPage.id}")
         cacheArray.remove(victim)
         cacheArray.add(newPage)
     }
 }
+
+class ClockSweepPageCacheImpl(storage: Storage, maxCacheSize: Int) :
+    SimplePageCacheImpl(storage, maxCacheSize) {
+    private var hand: Int = 0
+
+    private fun advanceHand() {
+        if (hand == cacheArray.size - 1) hand = 0 else ++hand
+    }
+
+    private fun isEvictCandidate(page: CachedPageImpl) =
+        page.pinCount == 0 && page.usage.accessCount == 0
+
+    private fun decrementUsage(page: CachedPageImpl) {
+        val usage = page.usage
+        if (usage.accessCount == 0) return
+        page.usage = usage.copy(accessCount = usage.accessCount - 1)
+    }
+
+    /**
+     * Note:
+     * Since clock-sweep algorithm is not executed concurrently here, it can be further optimized
+     * to do at most 2 full iterations over all the pages by finding minimum accessCount
+     * on the first iteration and subtracting that from all the pages' accessCount.
+     * But I assume that the algorithm is supposed to be executed in parallel with other operations,
+     * which would make this optimization meaningless.
+     */
+    override fun getEvictCandidate(): CachedPageImpl {
+        assert(hand < cacheArray.size)
+        var unpinnedPagesFound = false
+        val initialHand = hand
+        while (true) {
+            val page = cacheArray[hand]
+            advanceHand()
+            if (isEvictCandidate(page)) return page else decrementUsage(page)
+            if (page.pinCount == 0) unpinnedPagesFound = true
+            if (hand == initialHand && !unpinnedPagesFound) {
+                throw IllegalStateException("All pages are pinned, there is no victim for eviction")
+            }
+        }
+    }
+}
+
+
+class AgingPageCacheImpl(
+    storage: Storage,
+    maxCacheSize: Int = -1,
+    val readsPerClockTick: Int = (maxCacheSize / 40).coerceAtLeast(1),
+) : SimplePageCacheImpl(storage, maxCacheSize) {
+
+    private var readsUntilClockTick: Int = readsPerClockTick
+    private val pageAgeCounter = linkedMapOf<CachedPageImpl, UInt>()
+
+    init {
+        require(readsPerClockTick > 0)
+    }
+
+    override fun getEvictCandidate(): CachedPageImpl {
+        val evictCandidate = pageAgeCounter
+            .asSequence()
+            .filter { (page, _) -> page.pinCount == 0 }
+            .minByOrNull { (_, ageCounter) -> ageCounter }
+            ?.key ?: throw IllegalStateException("All pages are pinned, there is no victim for eviction")
+        val counter = pageAgeCounter.remove(evictCandidate)
+        LOG_AGING.debug("evicting: ${evictCandidate.id} counter=${counter?.toString(2)}")
+        return evictCandidate
+    }
+
+    override fun onPageRequest(page: CachedPageImpl, isCacheHit: Boolean?) {
+        super.onPageRequest(page, isCacheHit)
+        incrementPageAgeCounter(page)
+        clockTickIfNeeded()
+    }
+
+    private fun incrementPageAgeCounter(page: CachedPageImpl) {
+        val counter = pageAgeCounter[page] ?: 0u
+        val newCounter = counter or (1u shl 31)
+        LOG_AGING.debug("incrementing counter: page=${page.id} counter=${newCounter.toString(2)}")
+        pageAgeCounter[page] = newCounter
+    }
+
+    private fun clockTickIfNeeded() {
+        readsUntilClockTick -= 1
+        if (readsUntilClockTick > 0) {
+            return
+        }
+        clockTick()
+        readsUntilClockTick = readsPerClockTick
+    }
+
+    private fun clockTick() {
+        for (entry in pageAgeCounter.entries) {
+            entry.setValue(entry.value shr 1)
+        }
+    }
+}
+
+private val LOG = LoggerFactory.getLogger("Cache.Impl")
+private val LOG_AGING = LoggerFactory.getLogger("Cache.Impl.Aging")

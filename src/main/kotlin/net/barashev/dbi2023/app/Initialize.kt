@@ -45,6 +45,8 @@ fun initializeFactories(
     CacheManager.factory = { strg, size ->
         when (cacheImpl) {
             "none" -> NonePageCacheImpl(strg)
+            "clock" -> ClockSweepPageCacheImpl(strg, size)
+            "aging" -> AgingPageCacheImpl(strg, size)
             else -> FifoPageCacheImpl(strg, size)
         }
     }
