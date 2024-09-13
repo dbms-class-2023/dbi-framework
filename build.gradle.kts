@@ -17,7 +17,7 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
-    kotlin("jvm") version "1.9.0"
+    kotlin("jvm") version "2.0.20"
     java
     application
 }
@@ -30,9 +30,10 @@ repositories {
 }
 
 dependencies {
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:1.7.3")
-    implementation("net.datafaker:datafaker:1.9.0")
-    implementation("com.github.ajalt.clikt:clikt:4.2.0")
+    implementation("ch.qos.logback:logback-classic:1.5.8")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:1.8.1")
+    implementation("net.datafaker:datafaker:2.3.0")
+    implementation("com.github.ajalt.clikt:clikt:4.3.0")
     testImplementation(kotlin("test"))
 }
 
@@ -43,9 +44,6 @@ tasks.test {
     systemProperties = System.getProperties().mapKeys { it.key.toString() }.filterKeys { it in systemProps }
 }
 
-tasks.withType<KotlinCompile> {
-    kotlinOptions.jvmTarget = "17"
-}
 
 application {
     mainClass.set("net.barashev.dbi2023.app.MainKt")
