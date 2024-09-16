@@ -53,7 +53,7 @@ fun initializeFactories(
     Operations.sortFactory = { strg, cache ->
         when (sortImpl) {
             "real" -> TODO("Create your merge sort instance here")
-            else -> FakeMergeSort(strg, cache)
+            else -> SlowSortImpl(strg, cache)
         }
     }
     Operations.hashFactory = { storageAccessManager, pageCache ->
@@ -66,7 +66,7 @@ fun initializeFactories(
         when (joinAlgorithm) {
             JoinAlgorithm.NESTED_LOOPS -> success(FakeNestedLoops(accessMethodManager))
             JoinAlgorithm.HASH -> failure(NotImplementedError("Hash-Join not implemented yet"))
-            JoinAlgorithm.MERGE -> failure(NotImplementedError("Sort-Merge-Join not implemented yet"))
+            JoinAlgorithm.MERGE -> success(SortMergeJoinImpl(accessMethodManager, pageCache))
         }
     }
     Indexes.indexFactory = { storageAccessManager, cache ->

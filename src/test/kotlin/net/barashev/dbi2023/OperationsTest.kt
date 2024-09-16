@@ -109,6 +109,7 @@ class OperationsTest  {
                         val rightRecord = Record2(intField(), dateField()).fromBytes(matchingTuples.second)
                         outPairs.add(leftRecord to rightRecord)
                     }
+                    assertTrue(outPairs.isNotEmpty())
                     val comparator =
                         compareBy<Pair<Record2<Int, String>, Record2<Int, Date>>> { it.first.value1 }
                             .then(compareBy { it.second.value2 })

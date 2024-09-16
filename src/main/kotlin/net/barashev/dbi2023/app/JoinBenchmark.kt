@@ -32,9 +32,9 @@ import net.barashev.dbi2023.createHardDriveEmulatorStorage
 class JoinBenchmark: CliktCommand() {
     val dataScale: Int by option(help="Test data scale [default=1]").int().default(1)
     val cacheSize: Int by option(help="Page cache size [default=100]").int().default(System.getProperty("cache.size", "100").toInt())
-    val cacheImpl: String by option(help="Cache implementation [default=clock]").default(System.getProperty("cache.impl", "clock"));
+    val cacheImpl: String by option(help="Cache implementation [default=aging]").default(System.getProperty("cache.impl", "aging"));
     val realHash by option(help="Use the real hash implementation [default=true]").flag(default = true)
-    val realSort by option(help="Use the real merge-sort implementation [default=true]").flag(default = true)
+    val realSort by option(help="Use the real merge-sort implementation [default=false]").flag(default = false)
     val joinAlgorithm by option(help="Join algorithm to use [default=NESTED_LOOPS]").enum<JoinAlgorithm>().default(JoinAlgorithm.NESTED_LOOPS)
     override fun run() {
         val storage = createHardDriveEmulatorStorage()
