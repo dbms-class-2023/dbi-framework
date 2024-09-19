@@ -23,6 +23,7 @@ import net.barashev.dbi2023.fake.FakeHashTableBuilder
 import net.barashev.dbi2023.fake.FakeIndexManager
 import net.barashev.dbi2023.fake.FakeMergeSort
 import net.barashev.dbi2023.fake.FakeNestedLoops
+import org.slf4j.LoggerFactory
 import kotlin.Result.Companion.failure
 import kotlin.Result.Companion.success
 
@@ -39,9 +40,9 @@ fun initializeFactories(
     optimizerImpl: String = System.getProperty("optimizer.impl", "fake"),
     walImpl: String = System.getProperty("wal.impl", "fake"),
 ): Pair<PageCache, StorageAccessManager> {
-    println("=".repeat(80))
-    println("Cache policy: $cacheImpl")
-    println("Cache size: $cacheSize")
+    LOGGER.debug("=".repeat(80))
+    LOGGER.debug("Cache policy: $cacheImpl")
+    LOGGER.debug("Cache size: $cacheSize")
     CacheManager.factory = { strg, size ->
         when (cacheImpl) {
             "none" -> NonePageCacheImpl(strg)
@@ -100,3 +101,5 @@ fun initializeFactories(
 
     return cache to simpleAccessManager
 }
+
+private val LOGGER = LoggerFactory.getLogger("Initialize")

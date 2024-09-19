@@ -19,6 +19,7 @@ package net.barashev.dbi2023.app
 
 import net.barashev.dbi2023.*
 import net.datafaker.Faker
+import org.slf4j.LoggerFactory
 import kotlin.random.Random
 
 typealias MyTableBuilder = TableBuilder
@@ -47,23 +48,23 @@ class DataGenerator(
     val ticketBuilder = MyTableBuilder(storageAccessManager, cache, ticketTableOid)
 
     init {
-        println("--------------------")
-        println("Inserting $planetCount planets, $spacecraftCount spacecrafts, $flightCount flights and $ticketCount tickets")
-        println("--------------------")
+        LOGGER.debug("--------------------")
+        LOGGER.debug("Inserting $planetCount planets, $spacecraftCount spacecrafts, $flightCount flights and $ticketCount tickets")
+        LOGGER.debug("--------------------")
         populatePlanets(planetCount)
         populateSpacecrafts(spacecraftCount)
         populateFlights(flightCount, planetCount, spacecraftCount)
         populateTickets(ticketCount, flightCount)
-        println("--------------------")
-        println("Done!")
-        println("--------------------")
+        LOGGER.debug("--------------------")
+        LOGGER.debug("Done!")
+        LOGGER.debug("--------------------")
 
         if (!disableStatistics) {
-            println("--------------------")
-            println("Collecting statistics")
+            LOGGER.debug("--------------------")
+            LOGGER.debug("Collecting statistics")
             generateStatistics()
-            println("Done!")
-            println("--------------------")
+            LOGGER.debug("Done!")
+            LOGGER.debug("--------------------")
         }
 
         Thread.sleep(2000)
@@ -107,7 +108,7 @@ private fun DataGenerator.populateFlights(flightCount: Int, planetCount: Int, sp
 
 private fun DataGenerator.populateTickets(ticketCount: Int, flightCount: Int) {
     (1..ticketCount).forEach {
-        insertTicket(Random.nextInt(flightCount), faker.name().fullName(), Random.nextDouble(50.0, 200.0))
+        insertTicket(Random.nextInt(1, flightCount), faker.name().fullName(), Random.nextDouble(50.0, 200.0))
     }
 }
 
@@ -199,3 +200,6 @@ private fun DataGenerator.generateStatistics() {
         buildTableStatistics("ticket", ::ticketRecord)
     }
 }
+
+
+private val LOGGER = LoggerFactory.getLogger("DataGenerator")

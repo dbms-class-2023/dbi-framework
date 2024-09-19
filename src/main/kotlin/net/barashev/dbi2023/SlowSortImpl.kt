@@ -16,7 +16,6 @@ class SlowSortImpl(private val storageAccessManager: StorageAccessManager, priva
 
             // In this loop we find all the records with the minimum value and find the next minimum value.
             while (minRecord != null) {
-                println("min value=${minRecord.first}")
                 var nextMinRecord = minRecord!!
                 storageAccessManager.createFullScan(tableName).records {
                     comparableValue.apply(it) to it

@@ -28,6 +28,7 @@ import net.barashev.dbi2023.JoinAlgorithm
 import net.barashev.dbi2023.JoinOperand
 import net.barashev.dbi2023.Operations
 import net.barashev.dbi2023.createHardDriveEmulatorStorage
+import org.slf4j.LoggerFactory
 
 class JoinBenchmark: CliktCommand() {
     val dataScale: Int by option(help="Test data scale [default=1]").int().default(1)
@@ -46,28 +47,62 @@ class JoinBenchmark: CliktCommand() {
         DataGenerator(accessManager, cache, dataScale, fixedRowCount = true, disableStatistics = true).use{}
         Operations.innerJoinFactory(accessManager, cache, joinAlgorithm).fold(
             onFailure = {
-                println("Failed to join:")
-                println(it.message)
+                LOGGER.error("Failed to join: ${it.message}", it)
             },
             onSuccess = {
                 val cost0 = storage.totalAccessCost
-                it.join(
-                    JoinOperand("flight") {flightRecord(it).value1 },
-                    JoinOperand("ticket") { ticketRecord(it).value1 }
-                ).apply {
-                    println("""The results of flight JOIN ticket:
+                cache.flush()
+                val leftOperand = JoinOperand("flight") { flightRecord(it).value1 }
+                val rightOperand = JoinOperand("ticket") { ticketRecord(it).value1 }
+
+                val actualResult = mutableSetOf<Pair<TicketRecord, FlightRecord>>()
+                it.join(leftOperand, rightOperand).apply {
+                    LOGGER.debug("""The results of flight JOIN ticket:
                         |-------------------------------------------
                     """.trimMargin())
                 }.forEach {
-                    println("Flight: ${flightRecord(it.first)}")
-                    println("Ticket: ${ticketRecord(it.second)}")
-                    println("-------------------")
+                    actualResult.add(ticketRecord(it.second) to flightRecord(it.first))
+                    LOGGER.debug("Flight: ${flightRecord(it.first)}")
+                    LOGGER.debug("Ticket: ${ticketRecord(it.second)}")
+                    LOGGER.debug("-------------------")
                 }
-                println("Join cost: ${storage.totalAccessCost - cost0}")
-                println("Cache stats: ${cache.stats}")
+                println("JOIN COST:")
+                println(storage.totalAccessCost - cost0)
+                LOGGER.debug("Cache stats: ${cache.stats}")
+
+                val flightMap = accessManager.createFullScan("flight").records {
+                    leftOperand.joinAttribute.apply(it) to flightRecord(it)
+                }.toMap()
+                val expectedResult = accessManager.createFullScan("ticket").records {
+                    rightOperand.joinAttribute.apply(it) to ticketRecord(it)
+                }.map { ticket ->
+                    val flight = flightMap[ticket.first] ?: error("Can't find a flight by the flight number ${ticket.first}")
+                    ticket.second to flight
+                }.toSet()
+
+                if (expectedResult != actualResult) {
+                    val expectedString = expectedResult.map{"${it.first}: ${it.second}" }.joinToString(separator = "\n", postfix = "\n")
+                    val actualString = actualResult.map{"${it.first}: ${it.second}" }.joinToString(separator = "\n", postfix = "\n")
+                    if (expectedResult.size != actualResult.size) {
+                        LOGGER.error("""|
+                        |The result of the merge is not the one we expected. Expected ${expectedResult.size} pairs, actual ${actualResult.size} pairs
+                        |
+                        """.trimMargin())
+                    } else {
+                        LOGGER.error("The result size is as expected, but the contents is not")
+                        LOGGER.error("""-------------------------------
+                            EXPECTED:
+                            $expectedString""")
+                        LOGGER.error("""-------------------------------
+                            ACTUAL:
+                            $actualString""")
+                    }
+                    System.exit(1)
+                }
+
             }
         )
     }
-
-
 }
+
+private val LOGGER = LoggerFactory.getLogger("Join.Benchmark")

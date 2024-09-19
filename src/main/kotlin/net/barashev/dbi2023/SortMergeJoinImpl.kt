@@ -1,5 +1,6 @@
 package net.barashev.dbi2023
 
+import org.slf4j.LoggerFactory
 import java.io.Closeable
 
 /**
@@ -14,6 +15,7 @@ class SortMergeJoinImpl(private val storageAccessManager: StorageAccessManager, 
     private val closeables = mutableListOf<AutoCloseable>()
 
     override fun <T : Comparable<T>> join(leftTable: JoinOperand<T>, rightTable: JoinOperand<T>): JoinOutput {
+        cache.stats.reset()
         // Sort the inputs and write the intermediate sorted tables.
         val sortedLeftTable = Operations.sortFactory(storageAccessManager, cache).sort(leftTable.tableName, leftTable.joinAttribute)
         val sortedRightTable = Operations.sortFactory(storageAccessManager, cache).sort(rightTable.tableName, rightTable.joinAttribute)
@@ -22,7 +24,11 @@ class SortMergeJoinImpl(private val storageAccessManager: StorageAccessManager, 
             storageAccessManager.deleteTable(sortedLeftTable)
             storageAccessManager.deleteTable(sortedRightTable)
         })
-
+        LOGGER.debug("""Stats after sorting: 
+            |Cache
+            |------------------
+            |${cache.stats}""".trimMargin())
+        cache.stats.reset()
         // Create buffered iterators over the sorted tables.
         val leftRecords = BufferedRecordIterator(storageAccessManager, cache, 10, leftTable, sortedLeftTable)
         val rightRecords = BufferedRecordIterator(storageAccessManager, cache, 10, rightTable, sortedRightTable)
@@ -30,6 +36,10 @@ class SortMergeJoinImpl(private val storageAccessManager: StorageAccessManager, 
         closeables.add(leftRecords)
         closeables.add(rightRecords)
 
+        LOGGER.debug("""Stats after joining: 
+            |Cache
+            |------------------
+            |${cache.stats}""".trimMargin())
         return OutputIterator(leftRecords, rightRecords)
     }
 
@@ -135,7 +145,7 @@ class BufferedRecordIterator<T>(
     // All records from the first buffered page.
     private var topRecords = mutableListOf<ByteArray>()
     // Identifier of the first buffered page.
-    private val topPageId = pageChunk.first().id
+    private val topPageId get() = pageChunk.first().id
 
     init {
         // Initially we buffer up to bufferSize pages.
@@ -158,12 +168,17 @@ class BufferedRecordIterator<T>(
                 cache.getAndPin(it.id)
                 pageChunk.add(it)
             }
-            topRecords.addAll(pageChunk.first().allRecords().map { it.value.bytes })
-            topRecordIdx = 0
-            return true
-        } else {
+        }
+        if (pageChunk.isEmpty()) {
             return false
         }
+        topRecords.clear()
+        topRecords.addAll(pageChunk.first().allRecords().map { it.value.bytes })
+        if (topRecords.isEmpty()) {
+            return false
+        }
+        topRecordIdx = 0
+        return true
     }
 
     /**
@@ -222,3 +237,6 @@ private fun <T> Iterator<Pair<T, ByteArray>>.drop(num: Int): Iterator<Pair<T, By
     }
     return this
 }
+
+
+private val LOGGER = LoggerFactory.getLogger("Join.SortMerge")

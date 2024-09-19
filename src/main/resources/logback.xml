@@ -8,6 +8,7 @@
     <root level="info">
         <appender-ref ref="STDOUT" />
     </root>
+    <logger name="Join.Benchmark" level="INFO"/>
     <logger name="Cache.Benchmark" level="INFO"/>
     <logger name="Cache.Impl" level="INFO"/>
     <logger name="Cache.Impl.Aging" level="INFO"/>
