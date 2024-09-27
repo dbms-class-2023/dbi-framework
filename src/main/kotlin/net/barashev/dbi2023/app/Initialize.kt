@@ -53,7 +53,7 @@ fun initializeFactories(
     }
     Operations.sortFactory = { strg, cache ->
         when (sortImpl) {
-            "real" -> TODO("Create your merge sort instance here")
+            "real" -> FastSortImpl(strg, cache)
             else -> SlowSortImpl(strg, cache)
         }
     }

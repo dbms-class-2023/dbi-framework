@@ -30,8 +30,8 @@ class SortMergeJoinImpl(private val storageAccessManager: StorageAccessManager, 
             |${cache.stats}""".trimMargin())
         cache.stats.reset()
         // Create buffered iterators over the sorted tables.
-        val leftRecords = BufferedRecordIterator(storageAccessManager, cache, 10, leftTable, sortedLeftTable)
-        val rightRecords = BufferedRecordIterator(storageAccessManager, cache, 10, rightTable, sortedRightTable)
+        val leftRecords = BufferedRecordIterator(storageAccessManager, cache, 10, leftTable.joinAttribute, sortedLeftTable)
+        val rightRecords = BufferedRecordIterator(storageAccessManager, cache, 10, rightTable.joinAttribute, sortedRightTable)
         // Don't forget to release the buffered pages when we are done.
         closeables.add(leftRecords)
         closeables.add(rightRecords)
@@ -133,7 +133,7 @@ class BufferedRecordIterator<T>(
     private val storageAccessManager: StorageAccessManager,
     private val cache: PageCache,
     bufferSize: Int,
-    private val joinOperand: JoinOperand<T>,
+    private val valueParser: AttributeValueParser<T>,
     private val sortedTableName: String): AutoCloseable {
 
     // The main scan over the sorted table, one full pass.
@@ -165,8 +165,7 @@ class BufferedRecordIterator<T>(
     fun loadPage(): Boolean {
         if (scan.hasNext()) {
             scan.next().let {
-                cache.getAndPin(it.id)
-                pageChunk.add(it)
+                pageChunk.add(cache.getAndPin(it.id))
             }
         }
         if (pageChunk.isEmpty()) {
@@ -193,7 +192,7 @@ class BufferedRecordIterator<T>(
     /**
      * The top record, a pair of a join attribute value and raw bytes.
      */
-    fun topRecord(): Pair<T, ByteArray> = topRecords[topRecordIdx].let { joinOperand.joinAttribute.apply(it) to it }
+    fun topRecord(): Pair<T, ByteArray> = topRecords[topRecordIdx].let { valueParser.apply(it) to it }
 
     /**
      * Pulls the main iterator, that is, selects the next top record. If the current top page is scanned until the last record,
@@ -216,7 +215,7 @@ class BufferedRecordIterator<T>(
      */
     fun iterateFromTop(): Iterator<Pair<T, ByteArray>> =
         storageAccessManager.createFullScan(sortedTableName).startAt(topPageId).records {
-            joinOperand.joinAttribute.apply(it) to it
+            valueParser.apply(it) to it
         }.iterator().drop(topRecordIdx)
 
     override fun close() {

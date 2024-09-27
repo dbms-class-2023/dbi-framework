@@ -66,6 +66,10 @@ internal open class CachedPageImpl(
     internal fun incrementUsage() {
         usage = CachedPageUsage(usage.accessCount + 1, System.currentTimeMillis())
     }
+
+    override fun toString(): String {
+        return "#${id} (pincount=$pinCount)"
+    }
 }
 
 /**
@@ -111,6 +115,9 @@ open class SimplePageCacheImpl(internal val storage: Storage, private val maxCac
         }.also {
             onPageRequest(it, isCacheHit = cacheHit)
             it.pinCount += pinIncrement
+            if (it.pinCount > 1) {
+                println("page $pageId pins twice")
+            }
         }
     }
 
@@ -242,6 +249,7 @@ class ClockSweepPageCacheImpl(storage: Storage, maxCacheSize: Int) :
             if (isEvictCandidate(page)) return page else decrementUsage(page)
             if (page.pinCount == 0) unpinnedPagesFound = true
             if (hand == initialHand && !unpinnedPagesFound) {
+                println("pages: $cacheArray")
                 throw IllegalStateException("All pages are pinned, there is no victim for eviction")
             }
         }
