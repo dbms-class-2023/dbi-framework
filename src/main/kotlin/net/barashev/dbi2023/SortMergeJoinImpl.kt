@@ -165,8 +165,7 @@ class BufferedRecordIterator<T>(
     fun loadPage(): Boolean {
         if (scan.hasNext()) {
             scan.next().let {
-                cache.getAndPin(it.id)
-                pageChunk.add(it)
+                pageChunk.add(cache.getAndPin(it.id))
             }
         }
         if (pageChunk.isEmpty()) {
