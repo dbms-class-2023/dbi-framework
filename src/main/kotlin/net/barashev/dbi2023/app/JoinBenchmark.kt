@@ -66,8 +66,7 @@ class JoinBenchmark: CliktCommand() {
                     LOGGER.debug("Ticket: ${ticketRecord(it.second)}")
                     LOGGER.debug("-------------------")
                 }
-                println("JOIN COST:")
-                println(storage.totalAccessCost - cost0)
+                println("JOIN COST:${storage.totalAccessCost - cost0}")
                 LOGGER.debug("Cache stats: ${cache.stats}")
 
                 val flightMap = accessManager.createFullScan("flight").records {

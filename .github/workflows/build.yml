@@ -17,9 +17,11 @@ jobs:
       - uses: actions/setup-java@v3
         with:
           distribution: 'corretto'
-          java-version: 17
+          java-version: 21
           java-package: jdk
           cache: 'gradle'
       - name: Build project
         run: ./gradlew --no-daemon build
+      - name: Run Join Benchmark
+        run: ./run-sort-merge-join-benchmark.sh
         
