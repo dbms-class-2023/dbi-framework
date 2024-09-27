@@ -37,7 +37,7 @@ class JoinBenchmark: CliktCommand() {
     val realHash by option(help="Use the real hash implementation [default=true]").flag(default = true)
     val realSort by option(help="Use the real merge-sort implementation [default=false]").flag(default = false)
     val joinAlgorithm by option(help="Join algorithm to use [default=NESTED_LOOPS]").enum<JoinAlgorithm>().default(JoinAlgorithm.NESTED_LOOPS)
-    override fun run() {
+    override fun run() = try {
         val storage = createHardDriveEmulatorStorage()
         val (cache, accessManager) = initializeFactories(storage = storage, cacheSize = cacheSize,
             cacheImpl = cacheImpl,
@@ -101,6 +101,8 @@ class JoinBenchmark: CliktCommand() {
 
             }
         )
+    } catch (ex: Exception) {
+        System.exit(1)
     }
 }
 
