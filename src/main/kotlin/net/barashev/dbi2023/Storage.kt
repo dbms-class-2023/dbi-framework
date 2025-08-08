@@ -58,15 +58,13 @@ interface DiskPage {
     /** The whole byte array with the page data */
     val rawBytes: ByteArray
 
+    val headerSize: Int get() = Int.SIZE_BYTES
     /**
      * The number of bytes on this page, which are not occupied by records or auxiliary data. The reported
      * free space may or may not be sufficient for adding new records, depending on how records and auxiliary data
      * structures grow internally.
      */
     val freeSpace: Int
-
-    /** Size of the page header, in bytes */
-    val recordHeaderSize: Int
 
     /**
      * Puts the passed record into the page. Record id is supposed to be in the range [0..recordCount]. Special value

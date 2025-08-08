@@ -34,7 +34,7 @@ class StatisticsTest {
     @Test
     fun `unique field, basic test`() {
         val cache = FifoPageCacheImpl(storage, 20)
-        val accessMethodManager = SimpleStorageAccessManager(cache)
+        val accessMethodManager = SimpleStorageAccessManager(cache, storage)
 
         val table1 = accessMethodManager.createTable("table1")
         TableBuilder(accessMethodManager, cache, table1).use {builder ->
@@ -42,7 +42,7 @@ class StatisticsTest {
         }
         val statisticsManager = Statistics.managerFactory(accessMethodManager, cache)
         val fooStats = statisticsManager.buildAttributeStatistics("table1", "foo", IntAttribute(), 10) {
-            Record1(intField()).fromBytes(it).first
+            Record1(intField()).fromBytes(it).value1
         }
         assertEquals(100, fooStats.cardinality)
         fooStats.histogramBuckets.forEachIndexed{ idx, bucket ->
@@ -55,7 +55,7 @@ class StatisticsTest {
     @Test
     fun `field with duplicates, basic test`() {
         val cache = FifoPageCacheImpl(storage, 20)
-        val accessMethodManager = SimpleStorageAccessManager(cache)
+        val accessMethodManager = SimpleStorageAccessManager(cache, storage)
 
         val table1 = accessMethodManager.createTable("table1")
         TableBuilder(accessMethodManager, cache, table1).use {builder ->
@@ -64,7 +64,7 @@ class StatisticsTest {
         }
         val statisticsManager = Statistics.managerFactory(accessMethodManager, cache)
         val fooStats = statisticsManager.buildAttributeStatistics("table1", "foo", IntAttribute(), 10) {
-            Record1(intField()).fromBytes(it).first
+            Record1(intField()).fromBytes(it).value1
         }
         assertEquals(50, fooStats.cardinality)
         fooStats.histogramBuckets.forEachIndexed{ idx, bucket ->
@@ -77,7 +77,7 @@ class StatisticsTest {
     @Test
     fun `field with a single value`() {
         val cache = FifoPageCacheImpl(storage, 20)
-        val accessMethodManager = SimpleStorageAccessManager(cache)
+        val accessMethodManager = SimpleStorageAccessManager(cache, storage)
 
         val table1 = accessMethodManager.createTable("table1")
         TableBuilder(accessMethodManager, cache, table1).use {builder ->
@@ -85,7 +85,7 @@ class StatisticsTest {
         }
         val statisticsManager = Statistics.managerFactory(accessMethodManager, cache)
         val fooStats = statisticsManager.buildAttributeStatistics("table1", "foo", IntAttribute(), 10) {
-            Record1(intField()).fromBytes(it).first
+            Record1(intField()).fromBytes(it).value1
         }
         assertEquals(1, fooStats.cardinality)
         assertEquals(1, fooStats.histogramBuckets.size)
@@ -97,7 +97,7 @@ class StatisticsTest {
     @Test
     fun `table record count`() {
         val cache = FifoPageCacheImpl(storage, 20)
-        val accessMethodManager = SimpleStorageAccessManager(cache)
+        val accessMethodManager = SimpleStorageAccessManager(cache, storage)
 
         val table1 = accessMethodManager.createTable("table1")
         TableBuilder(accessMethodManager, cache, table1).use {builder ->

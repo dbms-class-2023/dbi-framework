@@ -25,17 +25,20 @@ import kotlin.test.assertEquals
 
 class IndexesTest {
     val faker = Faker()
+    lateinit var storage: Storage
+    lateinit var directoryStorage: Storage
     @BeforeEach
     fun initialize() {
-        initializeFactories(createHardDriveEmulatorStorage())
+        storage = createHardDriveEmulatorStorage()
+        directoryStorage = storage
+        initializeFactories(storage)
     }
 
     @Test
     fun `smoke test`() {
         val indexMethod = IndexMethod.valueOf(System.getProperty("index.method", "BTREE"))
-        val storage = createHardDriveEmulatorStorage()
         val cache = SimplePageCacheImpl(storage, 20)
-        val accessMethodManager = SimpleStorageAccessManager(cache)
+        val accessMethodManager = SimpleStorageAccessManager(cache, directoryStorage)
 
 
         val allNames = mutableListOf<String>()
@@ -68,9 +71,8 @@ class IndexesTest {
     @Test
     fun `multi index test`() {
         val indexMethod = IndexMethod.valueOf(System.getProperty("index.method", "BTREE"))
-        val storage = createHardDriveEmulatorStorage()
         val cache = SimplePageCacheImpl(storage, 20)
-        val accessMethodManager = SimpleStorageAccessManager(cache)
+        val accessMethodManager = SimpleStorageAccessManager(cache, directoryStorage)
 
         var fizzCount = 0
         var buzzCount = 0
@@ -105,9 +107,8 @@ class IndexesTest {
 
     @Test
     fun `overflow page, an overflow run start is the last record`() {
-        val storage = createHardDriveEmulatorStorage()
         val cache = SimplePageCacheImpl(storage, 20)
-        val accessMethodManager = SimpleStorageAccessManager(cache)
+        val accessMethodManager = SimpleStorageAccessManager(cache, directoryStorage)
 
         val overflowTableOid = accessMethodManager.createTable("overflow_table")
         val overflowPage1 = accessMethodManager.addPage(overflowTableOid).let(cache::getAndPin).use {

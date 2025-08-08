@@ -18,6 +18,7 @@
 
 package net.barashev.dbi2023
 
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import kotlin.test.assertEquals
@@ -26,11 +27,19 @@ import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
 
 class StorageAccessManagerTest {
+    lateinit var storage: Storage
+    lateinit var directoryStorage: Storage
+
+    @BeforeEach
+    fun setUp() {
+        storage = createHardDriveEmulatorStorage()
+        directoryStorage = createHardDriveEmulatorStorage()
+    }
+
     @Test
     fun `test table is missing`() {
-        val storage = createHardDriveEmulatorStorage()
         val cache = SimplePageCacheImpl(storage, 20)
-        val catalog = SimpleStorageAccessManager(cache)
+        val catalog = SimpleStorageAccessManager(cache, directoryStorage)
         assertThrows<AccessMethodException> {
             catalog.createFullScan("qwerty").records { error("Not expected to be here") }
         }
@@ -38,9 +47,8 @@ class StorageAccessManagerTest {
 
     @Test
     fun `create table`() {
-        val storage = createHardDriveEmulatorStorage()
         val cache = SimplePageCacheImpl(storage, 20)
-        val catalog = SimpleStorageAccessManager(cache)
+        val catalog = SimpleStorageAccessManager(cache, directoryStorage)
         catalog.createTable("table1")
         val fullScan = catalog.createFullScan("table1").records { error("Not expected to be here ")}
         assertEquals(listOf(), fullScan.toList())
@@ -48,9 +56,8 @@ class StorageAccessManagerTest {
 
     @Test
     fun `add table page`() {
-        val storage = createHardDriveEmulatorStorage()
         val cache = SimplePageCacheImpl(storage, 20)
-        val catalog = SimpleStorageAccessManager(cache)
+        val catalog = SimpleStorageAccessManager(cache, directoryStorage)
         val tableOid = catalog.createTable("table1")
         cache.getAndPin(catalog.addPage(tableOid)).use { dataPage ->
             dataPage.putRecord(Record2(intField(42), stringField("Hello world")).asBytes())
@@ -64,9 +71,8 @@ class StorageAccessManagerTest {
 
     @Test
     fun `add two tables`() {
-        val storage = createHardDriveEmulatorStorage()
         val cache = SimplePageCacheImpl(storage, 20)
-        val catalog = SimpleStorageAccessManager(cache)
+        val catalog = SimpleStorageAccessManager(cache, directoryStorage)
         val table1Oid = catalog.createTable("table1").also {
             cache.getAndPin(catalog.addPage(it)).use { dataPage ->
                 dataPage.putRecord(Record2(intField(42), stringField("Hello world")).asBytes())
@@ -88,9 +94,8 @@ class StorageAccessManagerTest {
 
     @Test
     fun `iterate over the same full scan twice`() {
-        val storage = createHardDriveEmulatorStorage()
         val cache = SimplePageCacheImpl(storage, 20)
-        val catalog = SimpleStorageAccessManager(cache)
+        val catalog = SimpleStorageAccessManager(cache, directoryStorage)
         catalog.createTable("table1").also {oid ->
             cache.getAndPin(catalog.addPage(oid)).use { dataPage ->
                 (1..20).forEach {
@@ -107,9 +112,8 @@ class StorageAccessManagerTest {
 
     @Test
     fun `iterate over table pages`() {
-        val storage = createHardDriveEmulatorStorage()
         val cache = SimplePageCacheImpl(storage, 20)
-        val catalog = SimpleStorageAccessManager(cache)
+        val catalog = SimpleStorageAccessManager(cache, directoryStorage)
         val tableOid = catalog.createTable("table1")
         (1..10).forEach {
             cache.getAndPin(catalog.addPage(tableOid)).use { dataPage ->
@@ -125,9 +129,8 @@ class StorageAccessManagerTest {
 
     @Test
     fun `page count`() {
-        val storage = createHardDriveEmulatorStorage()
         val cache = SimplePageCacheImpl(storage, 20)
-        val catalog = SimpleStorageAccessManager(cache)
+        val catalog = SimpleStorageAccessManager(cache, directoryStorage)
         val tableOid = catalog.createTable("table1")
 
         assertEquals(0, catalog.pageCount("table1"))
@@ -139,9 +142,8 @@ class StorageAccessManagerTest {
 
     @Test
     fun `delete table`() {
-        val storage = createHardDriveEmulatorStorage()
         val cache = SimplePageCacheImpl(storage, 20)
-        val catalog = SimpleStorageAccessManager(cache)
+        val catalog = SimpleStorageAccessManager(cache, directoryStorage)
         val tableOid = catalog.createTable("table1")
 
         assertTrue(catalog.tableExists("table1"))

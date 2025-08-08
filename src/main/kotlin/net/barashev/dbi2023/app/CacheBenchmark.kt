@@ -39,7 +39,7 @@ class CacheBenchmark: CliktCommand() {
     val testLongPinChance: Double by option(help="The probability of a full scan of flight table [default=${(1/3.0)}]").double().default(1/3.0)
     override fun run() {
         val storage = createHardDriveEmulatorStorage()
-        val (cache, accessManager) = initializeFactories(storage, cacheSize, cacheImpl)
+        val (cache, accessManager) = initializeFactories(storage, storage, cacheSize, cacheImpl)
         DataGenerator(accessManager, cache, dataScale, fixedRowCount = true, disableStatistics = true).use{}
 
         val planetPages = accessManager.pageCount("planet")

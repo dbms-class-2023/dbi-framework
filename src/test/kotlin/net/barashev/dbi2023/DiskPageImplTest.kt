@@ -164,7 +164,7 @@ class DiskPageImplTest {
     fun `delete and put first record`() {
         val storage = createHardDriveEmulatorStorage()
         val cache = SimplePageCacheImpl(storage, 1)
-        val accessManager = SimpleStorageAccessManager(cache)
+        val accessManager = SimpleStorageAccessManager(cache, storage)
 
         val tableName = "exampleTable"
 

@@ -199,6 +199,19 @@ class DateAttribute: AttributeType<Date>(Long.SIZE_BYTES) {
 }
 fun dateField(value: Date = Date.from(Instant.EPOCH)) = DateAttribute() to value
 
+class Record3Attribute<T1: Any, T2: Any, T3: Any>(private val proto: Record3<T1, T2, T3>): AttributeType<Record3<T1, T2, T3>>() {
+    override fun asBytes(value: Record3<T1, T2, T3>): ByteArray = value.asBytes()
+
+
+    override fun fromBytes(bytes: ByteArray): Pair<Record3<T1, T2, T3>, Int> =
+        proto.fromBytes(bytes).let {
+            it to it.size
+        }
+
+    override fun defaultValue(): Record3<T1, T2, T3> = proto
+}
+fun <T1: Any, T2: Any, T3: Any> record3Field(value: Record3<T1, T2, T3>) = Record3Attribute(value) to value
+
 // --------------------------------------------------------------------------------------------------------------------
 // RecordN are n'ary tuples with typed components. Tuples can be serialized and deserialized to/from byte arrays.
 
@@ -206,8 +219,12 @@ class Record1<T1: Any>(f1: Pair<AttributeType<T1>, T1>) {
     val type1 = f1.first
     val value1 = f1.second
 
+    val size: Int get() = asBytes().size
+
     fun asBytes(): ByteArray = type1.asBytes(value1)
-    fun fromBytes(bytes: ByteArray) = type1.fromBytes(bytes)
+    fun fromBytes(bytes: ByteArray): Record1<T1> = type1.fromBytes(bytes).let {
+        Record1(type1 to it.first)
+    }
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (javaClass != other?.javaClass) return false
@@ -225,19 +242,19 @@ class Record1<T1: Any>(f1: Pair<AttributeType<T1>, T1>) {
         result = 31 * result + value1.hashCode()
         return result
     }
-
-
 }
 
 class Record2<T1: Any, T2: Any>(
     f1: Pair<AttributeType<T1>, T1>,
     f2: Pair<AttributeType<T2>, T2>) {
 
+
     val type1 = f1.first
     val value1 = f1.second
     val type2 = f2.first
     val value2 = f2.second
 
+    val size: Int get() = asBytes().size
     fun asBytes(): ByteArray = type1.asBytes(value1) + type2.asBytes(value2)
     fun fromBytes(bytes: ByteArray): Record2<T1, T2> {
         val buffer = ByteBuffer.wrap(bytes)
@@ -287,6 +304,7 @@ class Record3<T1: Any, T2: Any, T3: Any>(
     val value2 = f2.second
     val type3 = f3.first
     val value3 = f3.second
+    val size: Int get() = asBytes().size
 
     fun asBytes(): ByteArray = type1.asBytes(value1) + type2.asBytes(value2) + type3.asBytes(value3)
     fun fromBytes(bytes: ByteArray): Record3<T1, T2, T3> {

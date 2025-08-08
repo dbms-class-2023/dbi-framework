@@ -34,7 +34,7 @@ class QueryExecutorTest {
     @Test
     fun `push down predicate to join leaf`() {
         val storage = createHardDriveEmulatorStorage()
-        val (cache, storageAccessManager) = initializeFactories(storage, 20)
+        val (cache, storageAccessManager) = initializeFactories(storage, storage,20)
         generateData(storageAccessManager, cache)
 
         val plan = QueryPlan(listOf(
@@ -74,7 +74,7 @@ class QueryExecutorTest {
     @Test
     fun `push down predicate to join inner node`() {
         val storage = createHardDriveEmulatorStorage()
-        val (cache, storageAccessManager) = initializeFactories(storage, 20)
+        val (cache, storageAccessManager) = initializeFactories(storage, storage,20)
         generateData(storageAccessManager, cache)
 
         val plan = QueryPlan(listOf(
@@ -111,7 +111,7 @@ class QueryExecutorTest {
     @Test
     fun `apply filters after joins`() {
         val storage = createHardDriveEmulatorStorage()
-        val (cache, storageAccessManager) = initializeFactories(storage, 20)
+        val (cache, storageAccessManager) = initializeFactories(storage, storage,20)
         generateData(storageAccessManager, cache)
 
         val plan = QueryPlan(listOf(
@@ -143,7 +143,7 @@ class QueryExecutorTest {
     @Test
     fun `filter using index`() {
         val storage = createHardDriveEmulatorStorage()
-        val (cache, storageAccessManager) = initializeFactories(storage, 20)
+        val (cache, storageAccessManager) = initializeFactories(storage, storage,20)
         generateData(storageAccessManager, cache)
         storageAccessManager.createIndex("flight", "num", IntAttribute()) {
             flightRecord(it).value1
@@ -179,7 +179,7 @@ class QueryExecutorTest {
     @Test
     fun `temporary tables are deleted`() {
         val storage = createHardDriveEmulatorStorage()
-        val (cache, storageAccessManager) = initializeFactories(storage, 20)
+        val (cache, storageAccessManager) = initializeFactories(storage, storage,20)
         generateData(storageAccessManager, cache)
 
         val plan = QueryPlan(parseJoinClause("planet.id:flight.planet_id flight.spacecraft_id:spacecraft.id"), emptyList())

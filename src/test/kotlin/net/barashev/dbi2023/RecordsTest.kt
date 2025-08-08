@@ -67,4 +67,19 @@ class RecordsTest {
         assertEquals(Date.from(Instant.EPOCH), c3)
     }
 
+    @Test
+    fun `record type attribute`() {
+        var rec = Record3(intField(42), stringField("The answer"), record3Field(
+            Record3(intField(1), booleanField(true), stringField("What was the question?"))
+        ))
+        val bytes = rec.asBytes()
+        assertEquals(rec.size, bytes.size)
+        Record3(intField(), stringField(), record3Field(Record3(intField(), booleanField(), stringField()))).fromBytes(bytes).let {
+            assertEquals(42, it.value1)
+            assertEquals("The answer", it.value2)
+            assertEquals(1, it.value3.value1)
+            assertEquals(true, it.value3.value2)
+            assertEquals("What was the question?", it.value3.value3)
+        }
+    }
 }

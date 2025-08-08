@@ -19,7 +19,6 @@
 package net.barashev.dbi2023
 
 import java.lang.IllegalArgumentException
-import java.util.Collections
 import java.util.function.Function
 
 private const val ATTRIBUTE_SYSTABLE_OID = 1
@@ -39,14 +38,14 @@ internal interface TablePageDirectory {
  * directory records that fit into a single directory page. Also, the total number of pages is restricted by a constant
  * which indicates how many pages are allocated for the directory.
  */
-class SimplePageDirectoryImpl(private val pageCache: PageCache): TablePageDirectory {
+class SimplePageDirectoryImpl(private val pageCache: PageCache, private val directoryCache: PageCache): TablePageDirectory {
     private var maxPageId: PageId = MAX_ROOT_PAGE_COUNT + 1
-    override fun pages(tableOid: Oid): Iterable<OidPageidRecord> = RootRecords(pageCache, tableOid, 1)
+    override fun pages(tableOid: Oid): Iterable<OidPageidRecord> = RootRecords(directoryCache, tableOid, 1)
 
     override fun add(tableOid: Oid, pageCount: Int): PageId {
         val nextPageId = maxPageId
         maxPageId += pageCount
-        return pageCache.getAndPin(tableOid).use { cachedPage ->
+        return directoryCache.getAndPin(tableOid).use { cachedPage ->
             (nextPageId until maxPageId).forEach {
                 cachedPage.putRecord(OidPageidRecord(intField(tableOid), intField(it)).asBytes()).let {result ->
                     if (result.isOutOfSpace) {
@@ -59,7 +58,7 @@ class SimplePageDirectoryImpl(private val pageCache: PageCache): TablePageDirect
     }
 
     override fun delete(tableOid: Oid) {
-        pageCache.getAndPin(tableOid).use {
+        directoryCache.getAndPin(tableOid).use {
             it.clear()
         }
     }
@@ -153,14 +152,15 @@ class IndexScanImpl<T, K: Comparable<K>>(private val pageCache: PageCache,
 }
 
 
-class SimpleStorageAccessManager(private val pageCache: PageCache): StorageAccessManager {
-    private val tablePageDirectory = SimplePageDirectoryImpl(pageCache)
-    private val tableOidMapping = TableOidMapping(pageCache, tablePageDirectory)
+class SimpleStorageAccessManager(private val pageCache: PageCache, directoryStorage: Storage): StorageAccessManager {
+    private val directoryCache = SimplePageCacheImpl(directoryStorage, 50)
+    private val tablePageDirectory = SimplePageDirectoryImpl(pageCache, directoryCache)
+    private val tableOidMapping = TableOidMapping(directoryCache, tablePageDirectory)
 
     override fun createFullScan(tableName: String): FullScan =
         tableOidMapping.get(tableName)
             ?.let { tableOid ->
-                FullScanImpl(pageCache, tableOid) { RootRecordIteratorImpl(pageCache, tableOid, 1) }
+                FullScanImpl(pageCache, tableOid) { RootRecordIteratorImpl(directoryCache, tableOid, 1) }
             }
             ?: throw AccessMethodException("Relation $tableName not found")
 

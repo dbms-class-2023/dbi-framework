@@ -27,15 +27,17 @@ import kotlin.test.assertTrue
 
 class OperationsTest  {
     private lateinit var storage: Storage
+    private lateinit var directoryStorage: Storage
     @BeforeEach
     fun initialize() {
         storage = createHardDriveEmulatorStorage()
+        directoryStorage = storage
         initializeFactories(storage)
     }
     @Test
     fun `merge sort smoke test`() {
         val cache = FifoPageCacheImpl(storage, 20)
-        val accessMethodManager = SimpleStorageAccessManager(cache)
+        val accessMethodManager = SimpleStorageAccessManager(cache, directoryStorage)
         val fooOid = accessMethodManager.createTable("foo")
         TableBuilder(accessMethodManager, cache, fooOid).let {builder ->
             (1..10000).shuffled().forEach {
@@ -55,7 +57,7 @@ class OperationsTest  {
         val faker = Faker()
         val storage = createHardDriveEmulatorStorage()
         val cache = FifoPageCacheImpl(storage, 20)
-        val accessMethodManager = SimpleStorageAccessManager(cache)
+        val accessMethodManager = SimpleStorageAccessManager(cache, directoryStorage)
         val fooOid = accessMethodManager.createTable("foo")
         TableBuilder(accessMethodManager, cache, fooOid).let {builder ->
             (1..10000).shuffled().forEach {
@@ -79,7 +81,7 @@ class OperationsTest  {
     fun `join smoke test`() {
         val storage = createHardDriveEmulatorStorage()
         val cache = SimplePageCacheImpl(storage, 20)
-        val accessMethodManager = SimpleStorageAccessManager(cache)
+        val accessMethodManager = SimpleStorageAccessManager(cache, directoryStorage)
         val fooOid = accessMethodManager.createTable("foo")
 
         val faker = Faker()
