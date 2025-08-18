@@ -19,12 +19,28 @@
 package net.barashev.dbi2023
 
 import net.barashev.dbi2023.app.*
+import net.barashev.dbi2023.catalog.CatalogPageFactoryImpl
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class QueryExecutorTest {
+    private lateinit var storage: Storage
+    private lateinit var directoryStorage: Storage
+    private lateinit var cache: PageCache
+    private lateinit var storageAccessManager: StorageAccessManager
+    @BeforeEach
+    fun initialize() {
+        storage = createHardDriveEmulatorStorage()
+        directoryStorage = createHardDriveEmulatorStorage(CatalogPageFactoryImpl())
+        initializeFactories(storage, directoryStorage, 20).let {
+            cache = it.first
+            storageAccessManager = it.second
+        }
+    }
+
     private fun generateData(storageAccessManager: StorageAccessManager, cache: PageCache) {
         DataGenerator(storageAccessManager, cache, 1, true, true).use {
             it.insertFlight(it.flightCount + 1, 1, 2)
@@ -33,8 +49,6 @@ class QueryExecutorTest {
 
     @Test
     fun `push down predicate to join leaf`() {
-        val storage = createHardDriveEmulatorStorage()
-        val (cache, storageAccessManager) = initializeFactories(storage, storage,20)
         generateData(storageAccessManager, cache)
 
         val plan = QueryPlan(listOf(
@@ -73,8 +87,6 @@ class QueryExecutorTest {
 
     @Test
     fun `push down predicate to join inner node`() {
-        val storage = createHardDriveEmulatorStorage()
-        val (cache, storageAccessManager) = initializeFactories(storage, storage,20)
         generateData(storageAccessManager, cache)
 
         val plan = QueryPlan(listOf(
@@ -110,8 +122,6 @@ class QueryExecutorTest {
 
     @Test
     fun `apply filters after joins`() {
-        val storage = createHardDriveEmulatorStorage()
-        val (cache, storageAccessManager) = initializeFactories(storage, storage,20)
         generateData(storageAccessManager, cache)
 
         val plan = QueryPlan(listOf(
@@ -142,8 +152,6 @@ class QueryExecutorTest {
 
     @Test
     fun `filter using index`() {
-        val storage = createHardDriveEmulatorStorage()
-        val (cache, storageAccessManager) = initializeFactories(storage, storage,20)
         generateData(storageAccessManager, cache)
         storageAccessManager.createIndex("flight", "num", IntAttribute()) {
             flightRecord(it).value1
@@ -178,8 +186,6 @@ class QueryExecutorTest {
 
     @Test
     fun `temporary tables are deleted`() {
-        val storage = createHardDriveEmulatorStorage()
-        val (cache, storageAccessManager) = initializeFactories(storage, storage,20)
         generateData(storageAccessManager, cache)
 
         val plan = QueryPlan(parseJoinClause("planet.id:flight.planet_id flight.spacecraft_id:spacecraft.id"), emptyList())

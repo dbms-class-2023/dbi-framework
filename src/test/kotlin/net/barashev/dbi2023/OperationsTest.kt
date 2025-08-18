@@ -17,6 +17,7 @@
 package net.barashev.dbi2023
 
 import net.barashev.dbi2023.app.initializeFactories
+import net.barashev.dbi2023.catalog.CatalogPageFactoryImpl
 import net.datafaker.Faker
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -31,7 +32,7 @@ class OperationsTest  {
     @BeforeEach
     fun initialize() {
         storage = createHardDriveEmulatorStorage()
-        directoryStorage = storage
+        directoryStorage = createHardDriveEmulatorStorage(CatalogPageFactoryImpl())
         initializeFactories(storage)
     }
     @Test

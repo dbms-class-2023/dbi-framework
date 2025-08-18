@@ -18,6 +18,7 @@
 
 package net.barashev.dbi2023
 
+import net.barashev.dbi2023.catalog.TablePageCatalogImpl
 import java.lang.IllegalArgumentException
 import java.util.function.Function
 
@@ -73,14 +74,14 @@ internal class TableOidMapping(
     private val tablePageDirectory: TablePageDirectory) {
     private val cachedMapping = mutableMapOf<String, Oid?>()
 
-    private fun createAccess(): Iterable<OidNameRecord> =
+    private fun scanRecords(): Iterable<OidNameRecord> =
         FullScanImpl(pageCache, NAME_SYSTABLE_OID, {tablePageDirectory.pages(NAME_SYSTABLE_OID).iterator()}).records {
             OidNameRecord(intField(), stringField(), booleanField()).fromBytes(it)
         }
 
     fun get(tableName: String): Oid? {
         val oid = cachedMapping.getOrPut(tableName) {
-            createAccess().firstOrNull {
+            scanRecords().firstOrNull {
                 it.value2 == tableName && !it.value3
             }?.value1 ?: -1
         }
@@ -88,7 +89,7 @@ internal class TableOidMapping(
     }
 
     internal fun isValid(oid: Oid): Boolean =
-        createAccess().firstOrNull {
+        scanRecords().firstOrNull {
             it.value1 == oid && !it.value3
         } != null
 
@@ -116,7 +117,7 @@ internal class TableOidMapping(
 
     private fun nextTableOid(): Oid {
         var maxOid = NAME_SYSTABLE_OID
-        createAccess().forEach {
+        scanRecords().forEach {
             // We ignore "isDeleted" flag here to be sure that table oid are always unique
             maxOid = maxOf(maxOid, it.value1)
         }
@@ -154,7 +155,8 @@ class IndexScanImpl<T, K: Comparable<K>>(private val pageCache: PageCache,
 
 class SimpleStorageAccessManager(private val pageCache: PageCache, directoryStorage: Storage): StorageAccessManager {
     private val directoryCache = SimplePageCacheImpl(directoryStorage, 50)
-    private val tablePageDirectory = SimplePageDirectoryImpl(pageCache, directoryCache)
+    //private val tablePageDirectory = SimplePageDirectoryImpl(pageCache, directoryCache)
+    private val tablePageDirectory = TablePageCatalogImpl(directoryCache)
     private val tableOidMapping = TableOidMapping(directoryCache, tablePageDirectory)
 
     override fun createFullScan(tableName: String): FullScan =

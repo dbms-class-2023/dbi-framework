@@ -49,6 +49,11 @@ internal open class CachedPageImpl(
     override val isDirty: Boolean get() = _isDirty
 
     override var usage = CachedPageUsage(0, System.currentTimeMillis())
+
+    override fun putHeader(header: ByteArray) = diskPage.putHeader(header).also {
+        _isDirty = true
+    }
+
     override fun putRecord(recordData: ByteArray, recordId: RecordId): PutRecordResult = diskPage.putRecord(recordData, recordId).also {
         _isDirty = true
     }

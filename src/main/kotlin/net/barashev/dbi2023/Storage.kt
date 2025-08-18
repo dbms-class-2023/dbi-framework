@@ -66,6 +66,8 @@ interface DiskPage {
      */
     val freeSpace: Int
 
+    fun putHeader(header: ByteArray)
+    fun getHeader(): ByteArray
     /**
      * Puts the passed record into the page. Record id is supposed to be in the range [0..recordCount]. Special value
      * -1 is accepted too, and is equivalent to recordCount.

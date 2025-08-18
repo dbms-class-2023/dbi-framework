@@ -40,6 +40,15 @@ internal class DiskPageImpl(
         directorySize = this.bytes.getDirectorySize()
         lastRecordOffset = if (directorySize > 0) this.bytes.getDirectoryEntry(directorySize - 1).absoluteValue else pageSize
     }
+
+    override fun putHeader(header: ByteArray) {
+        ByteBuffer.wrap(bytes, 0, headerSize).put(header)
+    }
+
+    override fun getHeader(): ByteArray {
+        return ByteBuffer.wrap(bytes, 0, headerSize).toBytes()
+    }
+
     override fun putRecord(recordData: ByteArray, recordId: RecordId): PutRecordResult {
         val recordId_ = if (recordId == -1) directorySize else recordId
         return if (recordId_ < 0 || recordId_ > directorySize) {

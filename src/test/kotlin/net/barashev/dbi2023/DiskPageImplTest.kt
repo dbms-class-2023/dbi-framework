@@ -18,6 +18,7 @@
 
 package net.barashev.dbi2023
 
+import net.barashev.dbi2023.catalog.CatalogPageFactoryImpl
 import org.junit.jupiter.api.Test
 import kotlin.random.Random
 import kotlin.test.*
@@ -163,8 +164,9 @@ class DiskPageImplTest {
     @Test
     fun `delete and put first record`() {
         val storage = createHardDriveEmulatorStorage()
+        val catalogStorage = createHardDriveEmulatorStorage(CatalogPageFactoryImpl())
         val cache = SimplePageCacheImpl(storage, 1)
-        val accessManager = SimpleStorageAccessManager(cache, storage)
+        val accessManager = SimpleStorageAccessManager(cache, catalogStorage)
 
         val tableName = "exampleTable"
 

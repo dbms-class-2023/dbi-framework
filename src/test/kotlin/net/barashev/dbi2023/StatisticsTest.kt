@@ -19,22 +19,26 @@
 package net.barashev.dbi2023
 
 import net.barashev.dbi2023.app.initializeFactories
+import net.barashev.dbi2023.catalog.CatalogPageFactoryImpl
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 
 class StatisticsTest {
     private lateinit var storage: Storage
+    lateinit var directoryStorage: Storage
+
     @BeforeEach
     fun initialize() {
         storage = createHardDriveEmulatorStorage()
+        directoryStorage = createHardDriveEmulatorStorage(CatalogPageFactoryImpl())
         initializeFactories(storage)
     }
 
     @Test
     fun `unique field, basic test`() {
         val cache = FifoPageCacheImpl(storage, 20)
-        val accessMethodManager = SimpleStorageAccessManager(cache, storage)
+        val accessMethodManager = SimpleStorageAccessManager(cache, directoryStorage)
 
         val table1 = accessMethodManager.createTable("table1")
         TableBuilder(accessMethodManager, cache, table1).use {builder ->
@@ -55,7 +59,7 @@ class StatisticsTest {
     @Test
     fun `field with duplicates, basic test`() {
         val cache = FifoPageCacheImpl(storage, 20)
-        val accessMethodManager = SimpleStorageAccessManager(cache, storage)
+        val accessMethodManager = SimpleStorageAccessManager(cache, directoryStorage)
 
         val table1 = accessMethodManager.createTable("table1")
         TableBuilder(accessMethodManager, cache, table1).use {builder ->
@@ -77,7 +81,7 @@ class StatisticsTest {
     @Test
     fun `field with a single value`() {
         val cache = FifoPageCacheImpl(storage, 20)
-        val accessMethodManager = SimpleStorageAccessManager(cache, storage)
+        val accessMethodManager = SimpleStorageAccessManager(cache, directoryStorage)
 
         val table1 = accessMethodManager.createTable("table1")
         TableBuilder(accessMethodManager, cache, table1).use {builder ->
@@ -97,7 +101,7 @@ class StatisticsTest {
     @Test
     fun `table record count`() {
         val cache = FifoPageCacheImpl(storage, 20)
-        val accessMethodManager = SimpleStorageAccessManager(cache, storage)
+        val accessMethodManager = SimpleStorageAccessManager(cache, directoryStorage)
 
         val table1 = accessMethodManager.createTable("table1")
         TableBuilder(accessMethodManager, cache, table1).use {builder ->

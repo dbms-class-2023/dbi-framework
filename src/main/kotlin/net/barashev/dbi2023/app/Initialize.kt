@@ -19,6 +19,7 @@
 package net.barashev.dbi2023.app
 
 import net.barashev.dbi2023.*
+import net.barashev.dbi2023.catalog.CatalogPageFactoryImpl
 import net.barashev.dbi2023.fake.FakeHashTableBuilder
 import net.barashev.dbi2023.fake.FakeIndexManager
 import net.barashev.dbi2023.fake.FakeNestedLoops
@@ -31,7 +32,7 @@ import kotlin.Result.Companion.success
  */
 fun initializeFactories(
     storage: Storage,
-    directoryStorage: Storage = storage,
+    directoryStorage: Storage = createHardDriveEmulatorStorage(CatalogPageFactoryImpl()),
     cacheSize: Int = (System.getProperty("cache.size") ?: "100").toInt(),
     cacheImpl: String = System.getProperty("cache.impl", "fifo"),
     sortImpl: String = System.getProperty("sort.impl", "fake"),

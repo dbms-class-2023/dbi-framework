@@ -18,6 +18,7 @@
 
 package net.barashev.dbi2023
 
+import net.barashev.dbi2023.catalog.CatalogPageFactoryImpl
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -33,7 +34,7 @@ class StorageAccessManagerTest {
     @BeforeEach
     fun setUp() {
         storage = createHardDriveEmulatorStorage()
-        directoryStorage = createHardDriveEmulatorStorage()
+        directoryStorage = createHardDriveEmulatorStorage(CatalogPageFactoryImpl())
     }
 
     @Test
@@ -138,6 +139,16 @@ class StorageAccessManagerTest {
         assertEquals(1, catalog.pageCount("table1"))
         catalog.addPage(tableOid, 10)
         assertEquals(11, catalog.pageCount("table1"))
+    }
+
+    @Test
+    fun `add 3000 pages`() {
+        val cache = SimplePageCacheImpl(storage, 20)
+        val catalog = SimpleStorageAccessManager(cache, directoryStorage)
+        val tableOid = catalog.createTable("table1")
+
+        catalog.addPage(tableOid, 3000)
+        assertEquals(3000, catalog.pageCount("table1"))
     }
 
     @Test
