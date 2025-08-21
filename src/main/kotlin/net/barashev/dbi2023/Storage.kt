@@ -131,7 +131,7 @@ interface BulkWrite: AutoCloseable {
 /**
  * Storage abstraction, which allows for random and sequential reads and writes.
  */
-interface Storage {
+interface Storage: AutoCloseable {
     /**
      * Reads a single page with the given page ID.
      */

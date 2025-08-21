@@ -15,6 +15,15 @@ import net.barashev.dbi2023.TablePageDirectory
 import net.barashev.dbi2023.intField
 import java.util.concurrent.locks.ReentrantReadWriteLock
 
+/**
+ * This catalog implementation maps up to MAX_TABLE_COUNT tables to their pages.
+ *
+ * A table catalog is a list of OidPageidRecord records, where Oid is the table OID and PageId is an identifier of a
+ * disk page that contains the table's data.
+ *
+ * Every table catalog is stored as a linked list of disk pages. The head page ID is equal to the table OID.
+ * A pointer to the next page in the list is stored in the header record.
+ */
 class TablePageCatalogImpl(private val directoryCache: PageCache): TablePageDirectory {
     private var nextCatalogPageId = MAX_TABLE_COUNT
     private var nextDataPageId = MAX_ROOT_PAGE_COUNT + 1
@@ -104,6 +113,12 @@ class TablePageCatalogImpl(private val directoryCache: PageCache): TablePageDire
 
 data class AddPageResult(val firstDataPageId: PageId, val nextDataPageId: PageId, val catalogPageId: PageId)
 
+/**
+ * A header record of a catalog page.
+ * Directory size is the number of records in this page.
+ * Next page id is the identifier of the next page in the linked list.
+ * Last page id is the identifier of the last page in the linked list (used in the head page only).
+ */
 class CatalogPageHeader(internal val directorySize: Int,
                         internal val lastPageId: PageId,
                         internal val nextPageId: PageId) {
@@ -115,6 +130,9 @@ class CatalogPageHeader(internal val directorySize: Int,
     companion object {
         fun read(page: DiskPage): CatalogPageHeader {
             val record = Record3(intField(), intField(), intField()).fromBytes(page.rawBytes)
+            if (record.value3 == 0) {
+                return CatalogPageHeader(0, 0, -1).also { it.write(page) }
+            }
             return CatalogPageHeader(record.value1, record.value2, record.value3)
         }
 
@@ -122,6 +140,9 @@ class CatalogPageHeader(internal val directorySize: Int,
     }
 }
 
+/**
+ * Factory for creating catalog pages. Adds a header record to the page.
+ */
 class CatalogPageFactoryImpl: DiskPageFactory {
     override fun createEmptyPage(pageId: PageId): DiskPage = DiskPageImpl(pageId, DEFAULT_DISK_PAGE_SIZE,
         CatalogPageHeader.recordSize()).also {

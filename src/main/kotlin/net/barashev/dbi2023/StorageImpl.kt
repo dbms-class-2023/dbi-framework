@@ -109,5 +109,8 @@ private class HardDiskEmulatorStorage(private val diskPageFactory: DiskPageFacto
         // => we need 1/8 rotation = 1.3ms to read the whole page
         accessCostMs += 1.3 * numPages
     }
+
+    override fun close() {
+    }
 }
 

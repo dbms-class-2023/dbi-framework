@@ -22,8 +22,12 @@ import com.github.ajalt.clikt.core.subcommands
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
+import com.github.ajalt.clikt.parameters.types.file
 import com.github.ajalt.clikt.parameters.types.int
 import net.barashev.dbi2023.*
+import net.barashev.dbi2023.catalog.CatalogPageFactoryImpl
+import java.io.File
+import java.nio.file.Path
 
 fun main(args: Array<String>) = Main().subcommands(SmokeTest(), CacheBenchmark(), SortBenchmark(), HashBenchmark(), JoinBenchmark()).main(args)
 
@@ -32,6 +36,8 @@ class Main: CliktCommand() {
 }
 
 class SmokeTest: CliktCommand() {
+    val dataDir: File? by option(help="Path to the data directory").file(mustExist = false, canBeDir = true, canBeFile = false)
+    val generateData by option(help="Generate data [default=false]").flag(default = false)
     val cacheSize: Int by option(help="Page cache size [default=100]").int().default(System.getProperty("cache.size", "100").toInt())
     val cacheImpl: String by option(help="Cache implementation [default=fifo]").default(System.getProperty("cache.impl", "fifo"));
     val sortImpl: String by option(help="Merge sort implementation [default=fake]").default(System.getProperty("sort.impl", "fake"))
@@ -48,12 +54,14 @@ class SmokeTest: CliktCommand() {
     val disableStatistics by option(help="Disable collection of attribute statistics [default=false]").flag(default = false)
 
     override fun run() {
-        val storage = createHardDriveEmulatorStorage()
+        val storage = dataDir?.let { createMappedFileStorage(baseDir = Path.of(it.path), factory = CatalogPageFactoryImpl()) } ?: createHardDriveEmulatorStorage()
         val (cache, accessManager) = initializeFactories(storage, storage, cacheSize, cacheImpl, sortImpl, indexImpl, optimizerImpl, walImpl)
-        DataGenerator(accessManager, cache, dataScale, !randomDataSize, disableStatistics).use {}
 
-        val populateCost = storage.totalAccessCost
-        println("The cost to populate tables: ${populateCost}")
+        if (generateData) {
+            DataGenerator(accessManager, cache, dataScale, !randomDataSize, disableStatistics).use {}
+            val populateCost = storage.totalAccessCost
+            println("The cost to populate tables: ${populateCost}")
+        }
 
         accessManager.buildIndexes(parseIndexClause(indexClause))
 
@@ -65,6 +73,7 @@ class SmokeTest: CliktCommand() {
         } else {
             printTableContents(accessManager, storage)
         }
+        storage.close()
     }
 
     private fun executeQueryPlan(accessManager: StorageAccessManager, cache: PageCache, storage: Storage) {
