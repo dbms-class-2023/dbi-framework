@@ -4,16 +4,22 @@ import net.barashev.dbi2023.DEFAULT_DISK_PAGE_SIZE
 import net.barashev.dbi2023.DiskPage
 import net.barashev.dbi2023.DiskPageFactory
 import net.barashev.dbi2023.DiskPageImpl
+import net.barashev.dbi2023.FullScanImpl
 import net.barashev.dbi2023.MAX_ROOT_PAGE_COUNT
 import net.barashev.dbi2023.NAME_SYSTABLE_OID
 import net.barashev.dbi2023.Oid
+import net.barashev.dbi2023.OidNameRecord
 import net.barashev.dbi2023.OidPageidRecord
 import net.barashev.dbi2023.PageCache
 import net.barashev.dbi2023.PageId
+import net.barashev.dbi2023.Record2
 import net.barashev.dbi2023.Record3
 import net.barashev.dbi2023.TablePageDirectory
+import net.barashev.dbi2023.booleanField
 import net.barashev.dbi2023.intField
+import net.barashev.dbi2023.stringField
 import java.util.concurrent.locks.ReentrantReadWriteLock
+import kotlin.use
 
 /**
  * This catalog implementation maps up to MAX_TABLE_COUNT tables to their pages.
@@ -23,17 +29,62 @@ import java.util.concurrent.locks.ReentrantReadWriteLock
  *
  * Every table catalog is stored as a linked list of disk pages. The head page ID is equal to the table OID.
  * A pointer to the next page in the list is stored in the header record.
+ *
+ * Zero page is a special page that stores a mapping of table names to table OIDs, as well as an identifier of the
+ * first free data page.
  */
 class TablePageCatalogImpl(private val directoryCache: PageCache): TablePageDirectory {
-    private var nextCatalogPageId = MAX_TABLE_COUNT
-    private var nextDataPageId = MAX_ROOT_PAGE_COUNT + 1
+    private var nextCatalogPageId = -1
+        set(value) {
+            val updateHeader = field != -1
+            field = value
+            if (updateHeader) {
+                saveHeader()
+            }
+        }
+    private var nextDataPageId = -1
+        set(value) {
+            val updateHeader = field != -1
+            field = value
+            if (updateHeader) {
+                saveHeader()
+            }
+        }
+
+    private fun saveHeader() {
+        directoryCache.getAndPin(NAME_SYSTABLE_OID).use { page ->
+            ZeroPageHeader.read(page).let {
+                ZeroPageHeader(it.directorySize, nextCatalogPageId, nextDataPageId).write(page)
+            }
+        }
+    }
+
+    override fun addTable(record: OidNameRecord) {
+        val bytes = record.asBytes()
+        directoryCache.getAndPin(NAME_SYSTABLE_OID).use {
+            it.putRecord(bytes).isOk
+        }
+        saveHeader()
+    }
+
     private val modifyLock = ReentrantReadWriteLock()
 
     init {
+        // We read the page #0 where we store table name => table oid mapping to initialize the next page identifiers.
         directoryCache.getAndPin(NAME_SYSTABLE_OID).use {
-            CatalogPageHeader(0, -1, -1).write(it)
+            val zeroPageHeader = ZeroPageHeader.read(it)
+            nextDataPageId = zeroPageHeader.freeDataPageId
+            nextCatalogPageId = zeroPageHeader.freeCatalogPageId
+            saveHeader()
         }
     }
+
+    override fun tableNameOidList(): List<OidNameRecord> =
+        FullScanImpl(directoryCache, NAME_SYSTABLE_OID, {pages(NAME_SYSTABLE_OID).iterator()}).records {
+            OidNameRecord(intField(), stringField(), booleanField()).fromBytes(it)
+        }.toList()
+
+
     override fun pages(tableOid: Oid): Iterable<OidPageidRecord> =
         if (tableOid == NAME_SYSTABLE_OID) {
             listOf(OidPageidRecord(intField(NAME_SYSTABLE_OID), intField(NAME_SYSTABLE_OID)))
@@ -113,6 +164,21 @@ class TablePageCatalogImpl(private val directoryCache: PageCache): TablePageDire
 
 data class AddPageResult(val firstDataPageId: PageId, val nextDataPageId: PageId, val catalogPageId: PageId)
 
+class ZeroPageHeader(internal val directorySize: Int, internal val freeCatalogPageId: Int, internal val freeDataPageId: PageId) {
+    fun write(page: DiskPage) {
+        page.putHeader(Record3(intField(directorySize), intField(freeCatalogPageId), intField(freeDataPageId)).asBytes())
+    }
+
+    companion object {
+        fun read(page: DiskPage): ZeroPageHeader {
+            val record = Record3(intField(), intField(), intField()).fromBytes(page.rawBytes)
+            if (record.value3 == 0) {
+                return ZeroPageHeader(0, MAX_TABLE_COUNT, MAX_ROOT_PAGE_COUNT + 1)
+            }
+            return ZeroPageHeader(record.value1, record.value2, record.value3)
+        }
+    }
+}
 /**
  * A header record of a catalog page.
  * Directory size is the number of records in this page.

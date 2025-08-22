@@ -73,6 +73,8 @@ class SmokeTest: CliktCommand() {
         } else {
             printTableContents(accessManager, storage)
         }
+        accessManager.close()
+        cache.flush()
         storage.close()
     }
 
@@ -97,6 +99,7 @@ class SmokeTest: CliktCommand() {
             }
             println("----")
         }
+        joinResult.close()
         println("Execution cost: ${storage.totalAccessCost - cost0}")
     }
 

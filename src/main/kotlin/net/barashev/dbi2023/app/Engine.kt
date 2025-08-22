@@ -103,13 +103,16 @@ class QueryExecutor(
             filterResult
         }
 
-        return result ?: executeSelect(plan) ?: error("Join clause seems to be empty")
+        return result ?: executeSelect(plan, temporaryTables)?.also {
+            it.close = { storageAccessManager.deleteTable(it.tableName) }
+            temporaryTables.remove(it.tableName)
+        } ?: error("Join clause seems to be empty")
     }
 
-    private fun executeSelect(plan: QueryPlan): JoinSpec? =
+    private fun executeSelect(plan: QueryPlan, temporaryTables: MutableList<String>): JoinSpec? =
         if (plan.filters.size == 1) {
             plan.filters.first().let {filterSpec ->
-                filter(JoinSpec(filterSpec.tableName, "").also { it.filter = filterSpec }, mutableListOf())
+                filter(JoinSpec(filterSpec.tableName, "").also { it.filter = filterSpec }, temporaryTables)
             }
         } else null
 

@@ -52,7 +52,7 @@ data class JoinNode(
 )
 
 typealias JoinTree = List<JoinNode>
-class QueryPlan(val joinTree: JoinTree, val filters: List<FilterSpec>)
+data class QueryPlan(val joinTree: JoinTree, val filters: List<FilterSpec>)
 
 object Optimizer {
     var factory: (StorageAccessManager, PageCache) -> QueryOptimizer = { _, _ ->

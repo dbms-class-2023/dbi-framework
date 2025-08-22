@@ -54,7 +54,7 @@ class JoinSpec(val tableName: String, val attributeName: String) {
         }
 
     var filter: FilterSpec? = null
-
+    var close: () -> Unit = {}
 
     operator fun component1() = tableName
     operator fun component2() = attribute

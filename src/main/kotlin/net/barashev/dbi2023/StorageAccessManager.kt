@@ -63,7 +63,7 @@ interface IndexScan<T, K: Comparable<K>> {
  * This is pretty low-level abstraction, e.g. it leaves the process of (de)serialization records from and to bytes
  * to the client. However, it hides the details of storing table metadata and implementations of table page iterators.
  */
-interface StorageAccessManager {
+interface StorageAccessManager: AutoCloseable {
     /**
      * Creates an empty table with the given name and writes appropriate records into the catalog.
      *

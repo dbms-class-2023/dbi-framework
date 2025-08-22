@@ -30,7 +30,10 @@ const val NAME_SYSTABLE_OID = 0
 internal interface TablePageDirectory {
     fun pages(tableOid: Oid): Iterable<OidPageidRecord>
     fun add(tableOid: Oid, pageCount: Int = 1): PageId
+    fun addTable(record: OidNameRecord)
     fun delete(tableOid: Oid)
+
+    fun tableNameOidList(): List<OidNameRecord>
 }
 
 /**
@@ -58,10 +61,18 @@ class SimplePageDirectoryImpl(private val pageCache: PageCache, private val dire
         }
     }
 
+    override fun addTable(oidNameRecord: OidNameRecord) {
+        TODO("Not yet implemented")
+    }
+
     override fun delete(tableOid: Oid) {
         directoryCache.getAndPin(tableOid).use {
             it.clear()
         }
+    }
+
+    override fun tableNameOidList(): List<OidNameRecord> {
+        TODO("Not yet implemented")
     }
 }
 
@@ -74,10 +85,7 @@ internal class TableOidMapping(
     private val tablePageDirectory: TablePageDirectory) {
     private val cachedMapping = mutableMapOf<String, Oid?>()
 
-    private fun scanRecords(): Iterable<OidNameRecord> =
-        FullScanImpl(pageCache, NAME_SYSTABLE_OID, {tablePageDirectory.pages(NAME_SYSTABLE_OID).iterator()}).records {
-            OidNameRecord(intField(), stringField(), booleanField()).fromBytes(it)
-        }
+    private fun scanRecords(): Iterable<OidNameRecord> = tablePageDirectory.tableNameOidList()
 
     fun get(tableName: String): Oid? {
         val oid = cachedMapping.getOrPut(tableName) {
@@ -96,20 +104,7 @@ internal class TableOidMapping(
     fun create(tableName: String): Oid {
         val nextOid = nextTableOid()
         val record = OidNameRecord(intField(nextOid), stringField(tableName), booleanField(false))
-        val bytes = record.asBytes()
-
-        val isOk = tablePageDirectory.pages(NAME_SYSTABLE_OID).firstOrNull { oidPageId ->
-            pageCache.getAndPin(oidPageId.value2).use { nameTablePage ->
-                nameTablePage.putRecord(bytes).isOk
-            }
-        } != null
-        if (!isOk) {
-            tablePageDirectory.add(NAME_SYSTABLE_OID).let {
-                pageCache.getAndPin(it).use { nameTablePage ->
-                    nameTablePage.putRecord(bytes).isOk
-                }
-            }
-        }
+        tablePageDirectory.addTable(record)
         return nextOid.also {
             cachedMapping[tableName] = it
         }
@@ -261,5 +256,8 @@ class SimpleStorageAccessManager(private val pageCache: PageCache, directoryStor
         tableExists(tableName.indexTableName(attributeName, IndexMethod.BTREE)) || tableExists(tableName.indexTableName(attributeName, IndexMethod.HASH))
 
     private fun String.indexTableName(attributeName: String, method: IndexMethod) = "${this}_idx_${attributeName}_${method.name.lowercase()}"
+    override fun close() {
+        directoryCache.flush()
+    }
 
 }
